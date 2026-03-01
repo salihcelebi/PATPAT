@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>İlan Tarama</title>
+  <style>
+    :root {
+      --bg:#11132a;
+      --card:#20193d;
+      --line:rgba(255,255,255,0.12);
+      --text:#f2edff;
+      --muted:#b8aedd;
+      --danger:#cf2f38;
+      --dangerH:#e13e47;
+      --success:#37b24d;
+    }
+    body {
+      margin:0;
+      background:linear-gradient(180deg,var(--bg),#1a1531);
+      color:var(--text);
+      font-family:system-ui;
+    }
+    .wrap {
+      padding:14px;
+      position:relative;
+    }
+    .card {
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+    .row {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    select,input,button {
+      height:36px;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#191633;
+      color:var(--text);
+      padding:0 10px;
+    }
+    button {
+      cursor:pointer;
+    }
+    table {
+      width:100%;
+      border-collapse:collapse;
+      min-width:900px;
+      font-size:14px;
+    }
+    th,td {
+      border-bottom:1px solid var(--line);
+      padding:6px;
+      text-align:left;
+    }
+    th { font-weight:600; }
+    .empty, .hint {
+      color:var(--muted);
+      margin-top:8px;
+    }
+    #logSection table {
+      margin-top:8px;
+    }
+    #logSection th, #logSection td {
+      font-size:12px;
+    }
+    .checkbox {
+      width:16px;
+      height:16px;
+    }
+  </style>
+</head>
+<body data-page="sidepanel">
+  <div class="wrap" id="appRoot">
+    <div class="card">
+      <h3>İlan Tarama</h3>
+      <div class="row">
+        <select id="selPlatformFilter">
+          <option value="">Platform (hepsi)</option>
+          <option value="youtube">youtube</option>
+          <option value="tiktok">tiktok</option>
+          <option value="instagram">instagram</option>
+        </select>
+        <select id="selServiceFilter">
+          <option value="">Hizmet (hepsi)</option>
+          <option value="hesap">hesap</option>
+          <option value="takipci">takipci</option>
+          <option value="begeni">begeni</option>
+          <option value="izlenme">izlenme</option>
+          <option value="yorum">yorum</option>
+          <option value="canli">canli</option>
+          <option value="kaydet">kaydet</option>
+          <option value="paylasim">paylasim</option>
+          <option value="repost">repost</option>
+          <option value="reklam">reklam</option>
+        </select>
+        <button id="btnScan">Tara</button>
+        <button id="btnClear">Temizle</button>
+      </div>
+      <div class="row">
+        <button id="btnCopySelected">Seçili Kopyala</button>
+        <button id="btnCopyAll">Tümünü Kopyala</button>
+        <button id="btnExportCsv">CSV</button>
+        <button id="btnExportJson">JSON</button>
+      </div>
+      <div class="hint" id="scanStats">Toplam 0 satır.</div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>İlan ID</th>
+              <th>Platform</th>
+              <th>Hizmet</th>
+              <th>İlan URL</th>
+              <th>Kanıt</th>
+            </tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+        <div class="empty" id="tblEmpty">Henüz veri yok.</div>
+      </div>
+    </div>
+    <div class="card" id="logSection">
+      <h3>Loglar</h3>
+      <div class="row">
+        <select id="selLogLevel">
+          <option value="">Seviye (hepsi)</option>
+          <option value="info">Bilgi</option>
+          <option value="warn">Uyarı</option>
+          <option value="error">Hata</option>
+        </select>
+        <input id="logSearch" type="text" placeholder="Log ara..." />
+        <button id="btnCopyLogs">Tüm Logları Kopyala</button>
+        <button id="btnCopySelectedLogs">Seçili Logları Kopyala</button>
+        <button id="btnClearLogs">Logları Temizle</button>
+        <button id="btnExportLogs">Logları Dışa Aktar</button>
+      </div>
+      <div style="overflow:auto;max-height:220px;">
+        <table>
+          <thead><tr><th></th><th>Zaman</th><th>Seviye</th><th>Kaynak</th><th>Mesaj</th></tr></thead>
+          <tbody id="tblLogsBody"></tbody>
+        </table>
+        <div class="empty" id="logsEmpty">Henüz log yok.</div>
+      </div>
+    </div>
+  </div>
+  <script src="xx.js"></script>
+</body>
+</html>
