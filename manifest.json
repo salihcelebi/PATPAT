@@ -8,7 +8,9 @@
     "tabs",
     "clipboardRead",
     "clipboardWrite",
-    "sidePanel"
+    "sidePanel",
+    "scripting",
+    "activeTab"
   ],
   "action": {
     "default_title": "Sipariş ve Şikayet Yönetimi",
@@ -45,5 +47,26 @@
   "background": {
     "service_worker": "background.js"
   },
-  "minimum_chrome_version": "114"
+  "minimum_chrome_version": "114",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hesap.com.tr/*",
+        "https://anabayiniz.com/*"
+      ],
+      "js": [
+        "content_script_fetch.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://hesap.com.tr/*"
+      ],
+      "js": [
+        "content_script_hesap.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

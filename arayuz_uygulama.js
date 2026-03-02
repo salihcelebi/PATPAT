@@ -45,6 +45,15 @@ function formatEta(ms) {
   return m > 0 ? `${m}dk ${r}sn` : `${r}sn`;
 }
 
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function setScanBadge(text, level = 'info') {
   if (!refs.scanStateBadge) return;
   refs.scanStateBadge.textContent = text;
@@ -75,10 +84,11 @@ function updateScanUI() {
     } else {
       refs.scanFailures.classList.remove('hidden');
       refs.scanFailures.innerHTML = '<div style="font-size:12px;color:var(--muted-color);">Başarısız sayfalar</div>' + scanUI.failures.map((f, i) => {
-        const u = f.source_url || '';
-        const why = `${f.code || 'HATA'}: ${f.message || ''}`;
+        const u = escapeHtml(f.source_url || '');
+        const why = escapeHtml(`${f.code || 'HATA'}: ${f.message || ''}`);
+        const kind = f.kind === 'smm' ? 'SMM' : 'HESAP';
         return `<div class="scan-failure-item" data-idx="${i}">
-          <div class="scan-failure-text"><strong>${f.kind === 'smm' ? 'SMM' : 'HESAP'}</strong> — ${u}<br/><span style="color:var(--muted-color)">${why}</span></div>
+          <div class="scan-failure-text"><strong>${kind}</strong> — ${u}<br/><span style="color:var(--muted-color)">${why}</span></div>
           <div class="scan-failure-actions">
             <button type="button" class="btnRetryFail">Tekrar Dene</button>
             <button type="button" class="btnSkipFail">Atla</button>
@@ -461,14 +471,39 @@ function attachEvents() {
       updateMessagePreview(message);
     }
   });
-  refs.btnSendMessage.addEventListener('click', async () => {
-    if (selectedOrderId) {
-      const orderRow = recordStore.orders.get(String(selectedOrderId));
-      const message = refs.messagePreview.value;
-      const result = await sendMessage({ buyerUsername: orderRow?.buyer_username, orderId: orderRow?.order_id, messageText: message, dryRun: state.dryRun });
-      LogManager.addLog({ level: result === 'ERROR' ? 'error' : 'info', module: 'ui', action: 'sendMessage', result });
+  refs.btnSendMessage.addEventListener('click', async (ev) => {
+    if (!selectedOrderId) return;
+
+    const orderRow = recordStore.orders.get(String(selectedOrderId));
+    const message = refs.messagePreview.value || '';
+
+    if (state.dryRun) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      await copyToClipboard(message);
+      LogManager.addLog({ level: 'info', module: 'ui', action: 'sendMessage', result: 'DRY_RUN_COPY_ONLY' });
       renderLogs();
+      return;
     }
+
+    const username = String(orderRow?.buyer_username || '').trim();
+    if (username) {
+      const profileUrl = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
+      await copyToClipboard(message);
+      window.open(profileUrl, '_blank', 'noopener,noreferrer');
+      LogManager.addLog({ level: 'info', module: 'ui', action: 'open_message_profile', result: profileUrl });
+      renderLogs();
+      return;
+    }
+
+    const result = await sendMessage({
+      buyerUsername: orderRow?.buyer_username,
+      orderId: orderRow?.order_id,
+      messageText: message,
+      dryRun: state.dryRun,
+    });
+    LogManager.addLog({ level: result === 'ERROR' ? 'error' : 'warn', module: 'ui', action: 'sendMessageFallback', result });
+    renderLogs();
   });
   refs.btnCopyMessage.addEventListener('click', async () => {
     try {

@@ -17,8 +17,20 @@ import { LogManager } from './kayit_ve_loglama.js';
 
 
 // FIX5_FETCH_HTML: gerçek tarama için HTML çekme yardımcıları
+async function fetchHtmlViaTab(url) {
+  if (!(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) {
+    throw new Error('NO_CHROME_RUNTIME');
+  }
+  const response = await chrome.runtime.sendMessage({ type: 'FETCH_HTML_FROM_TAB', url });
+  if (!response?.ok) {
+    throw new Error(response?.error || 'FETCH_HTML_FROM_TAB_FAIL');
+  }
+  return String(response.html || '');
+}
+
 async function fetchHtml(url, abortSignal) {
-  const res = await fetch(url, {
+  try {
+    const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
     cache: 'no-store',
@@ -27,11 +39,15 @@ async function fetchHtml(url, abortSignal) {
     headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }
   });
   if (!res.ok) {
-    const err = new Error(`HTTP_${res.status}`);
-    err.code = `HTTP_${res.status}`;
-    throw err;
+      const err = new Error(`HTTP_${res.status}`);
+      err.code = `HTTP_${res.status}`;
+      throw err;
+    }
+    return await res.text();
+  } catch (directErr) {
+    if (abortSignal?.aborted) throw directErr;
+    return await fetchHtmlViaTab(url);
   }
-  return await res.text();
 }
 
 /**
