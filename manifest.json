@@ -8,7 +8,9 @@
     "tabs",
     "clipboardRead",
     "clipboardWrite",
-    "sidePanel"
+    "sidePanel",
+    "scripting",
+    "activeTab"
   ],
   "action": {
     "default_title": "Sipariş ve Şikayet Yönetimi",
@@ -31,7 +33,12 @@
         "eslestirme_ve_sablonlar.js",
         "mesaj_gonderici.js",
         "kayit_ve_loglama.js",
-        "arayuz_uygulama.js"
+        "arayuz_uygulama.js",
+        "puter.md",
+        "puter_rules_runtime.js",
+        "puter_chat_demo.html",
+        "puter_chat_demo.js",
+        "lib/puter-v2.js"
       ],
       "matches": [
         "<all_urls>"
@@ -41,5 +48,29 @@
   "background": {
     "service_worker": "background.js"
   },
-  "minimum_chrome_version": "114"
+  "minimum_chrome_version": "114",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hesap.com.tr/*",
+        "https://anabayiniz.com/*"
+      ],
+      "js": [
+        "content_script_fetch.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://hesap.com.tr/*"
+      ],
+      "js": [
+        "content_script_hesap.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
 }

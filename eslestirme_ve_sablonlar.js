@@ -102,26 +102,62 @@ export function checkPolicy(text) {
  * @param {Object} smmRow
  * @param {('auto'|'complaint')} type
  */
-export function generateMessage(orderRow, smmRow, type = 'auto') {
+export function generateMessage(orderRow, smmRow, type = 'auto', rulesPack = null) {
   const paketMiktari = extractPackageQuantity(smmRow?.service_full);
   const tarihGunAy = formatDateToTr(smmRow?.date);
-  const durumTrMap = {
-    'pending': 'BEKLEMEDE',
-    'processing': 'YÜKLENİYOR',
-    'completed': 'TAMAMLANDI',
-    'cancelled': 'İPTAL',
-    'partial': 'KISMİ',
-    'inprogress': 'DEVAM EDİYOR',
-    'inprogres': 'DEVAM EDİYOR',
-    'returnprocess': 'İADE SÜRECİ',
-    'problematic': 'SORUNLU',
+
+  const fallbackStatusMap = {
+    pending: 'BEKLEMEDE',
+    processing: 'YÜKLENİYOR',
+    completed: 'TAMAMLANDI',
+    cancelled: 'İPTAL',
+    partial: 'KISMİ',
+    inprogress: 'DEVAM EDİYOR',
+    inprogres: 'DEVAM EDİYOR',
+    returnprocess: 'İADE SÜRECİ',
+    problematic: 'SORUNLU',
   };
-  const durumTr = durumTrMap[String(smmRow?.status || '').toLowerCase()] || (smmRow?.status || '');
-  if (type === 'complaint') {
-    return `DEĞERLİ MÜŞTERİMİZ;\n${tarihGunAy} VERMİŞ OLDUĞUNUZ ${smmRow?.order_id || ''} ID NOLU SİPARİŞİNİZ İÇİN AYRINTILAR AŞAĞIDAKİ GİBİDİR\nŞU URL İÇİN HİZMET ALDINIZ  : ${smmRow?.order_link || ''}\nŞU KADAR MİKTAR ALDINIZ : ${paketMiktari ?? 'BİLGİ ALINAMADI'}\nBİZİM SİZE ${durumTr === 'TAMAMLANDI' ? 'GÖNDERDİĞİMİZ' : 'GÖNDERECEĞİMİZ'} ADET : ${smmRow?.quantity ?? ''}\nHİZMETİ BİZDEN ALMADAN ÖNCE SAYI : ${smmRow?.start_count ?? ''} İDİ\nHİZMET DURUMU : ŞU ANDA ${durumTr}`;
+
+  const statusMap = rulesPack?.status_map && Object.keys(rulesPack.status_map).length
+    ? rulesPack.status_map
+    : fallbackStatusMap;
+
+  const durumKey = String(smmRow?.status || '').toLowerCase();
+  const durumTr = statusMap[durumKey] || (smmRow?.status || '');
+
+  const tplComplaint = rulesPack?.templates?.COMPLAINT;
+  const tplAuto = rulesPack?.templates?.AUTO;
+
+  const vars = {
+    TARIH: tarihGunAy || '',
+    SMM_ORDER_ID: String(smmRow?.order_id || orderRow?.smm_id || orderRow?.order_id || ''),
+    ORDER_LINK: String(smmRow?.order_link || orderRow?.ilan_url || ''),
+    PAKET_MIKTARI: paketMiktari ?? 'BİLGİ ALINAMADI',
+    QUANTITY: String(smmRow?.quantity ?? ''),
+    START_COUNT: String(smmRow?.start_count ?? ''),
+    DURUM_TR: String(durumTr || ''),
+    GONDERIM_IFADESI: durumTr === 'TAMAMLANDI' ? 'GÖNDERDİĞİMİZ' : 'GÖNDERECEĞİMİZ',
+  };
+
+  function fill(template) {
+    return String(template || '').replace(/{([A-Z0-9_]+)}/g, (_, key) => (vars[key] ?? ''));
   }
-  // auto info
-  return `DEĞERLİ MÜŞTERİMİZ;\n${tarihGunAy} TARİHLİ ${smmRow?.order_id || ''} ID NOLU SİPARİŞİNİZ ${durumTr} DURUMUNDADIR.\nHERHANGİ BİR İSTEĞİNİZ OLURSA EN GEÇ 5-6 SAAT İÇERİSİNDE CEVAPLIYORUZ`;
+
+  if (type === 'complaint') {
+    if (tplComplaint) return fill(tplComplaint);
+    return `DEĞERLİ MÜŞTERİMİZ;
+${vars.TARIH} VERMİŞ OLDUĞUNUZ ${vars.SMM_ORDER_ID} ID NOLU SİPARİŞİNİZ İÇİN AYRINTILAR AŞAĞIDAKİ GİBİDİR
+ŞU URL İÇİN HİZMET ALDINIZ  : ${vars.ORDER_LINK}
+ŞU KADAR MİKTAR ALDINIZ : ${vars.PAKET_MIKTARI}
+BİZİM SİZE ${vars.GONDERIM_IFADESI} ADET : ${vars.QUANTITY}
+HİZMETİ BİZDEN ALMADAN ÖNCE SAYI : ${vars.START_COUNT} İDİ
+HİZMET DURUMU : ŞU ANDA ${vars.DURUM_TR}`;
+  }
+
+  if (tplAuto) return fill(tplAuto);
+  return `DEĞERLİ MÜŞTERİMİZ;
+${vars.TARIH} TARİHLİ ${vars.SMM_ORDER_ID} ID NOLU SİPARİŞİNİZ ${vars.DURUM_TR} DURUMUNDADIR.
+HERHANGİ BİR İSTEĞİNİZ OLURSA EN GEÇ 5-6 SAAT İÇERİSİNDE CEVAPLIYORUZ`;
 }
 
 // Exported functions for other modules

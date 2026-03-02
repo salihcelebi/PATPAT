@@ -12,6 +12,9 @@ import { taraAnabayiniz } from './kaziyici_anabayiniz_com.js';
 import { matchOrderAndSmm, generateMessage, checkPolicy } from './eslestirme_ve_sablonlar.js';
 import { sendMessage } from './mesaj_gonderici.js';
 import { recordStore, LogManager } from './kayit_ve_loglama.js';
+import { ensureRulesPackLoaded } from './puter_rules_runtime.js';
+import { applySimplify } from './ui_simplify.js';
+import { makeLogStore, compactLinesFromEntries } from './log_compact.js';
 
 // Uygulama durumu
 const state = {
@@ -23,6 +26,8 @@ const state = {
   dryRun: true,
   isRunning: false,
   abortController: null,
+  rulesPack: null,
+  aiMode: 'TEMPLATE',
 };
 
 // FIX5: tarama durumu (gerçek zamanlı UI)
@@ -35,12 +40,81 @@ const scanUI = {
   failures: [], // {kind, source_url, status, page_no, smm_id, code, message}
 };
 
+
+const logStore = makeLogStore();
+let renderLogsTimer = null;
+
+function scheduleRenderLogs() {
+  if (renderLogsTimer) clearTimeout(renderLogsTimer);
+  renderLogsTimer = setTimeout(() => {
+    renderLogsTimer = null;
+    renderLogs();
+  }, 250);
+}
+
+function pushLog(entry) {
+  logStore.push(entry);
+  LogManager.addLog(entry);
+  scheduleRenderLogs();
+}
+
+function bindCompactLogButtons() {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const btnCopy = buttons.find((b) => String(b.textContent || '').trim().toUpperCase() === 'LOGLARI KOPYALA');
+  const btnPack = buttons.find((b) => String(b.textContent || '').trim().toUpperCase() === 'PAKETİ HAZIRLA');
+
+  if (btnCopy && !btnCopy.dataset.boundCompact) {
+    btnCopy.dataset.boundCompact = '1';
+    btnCopy.addEventListener('click', async () => {
+      const lines = compactLinesFromEntries(logStore.getLastRun());
+      const compactTxt = lines.join('\n');
+      await copyToClipboard(compactTxt);
+    });
+  }
+
+  if (btnPack && !btnPack.dataset.boundCompact) {
+    btnPack.dataset.boundCompact = '1';
+    btnPack.addEventListener('click', () => {
+      const entries = logStore.getLastRun();
+      const compactTxt = compactLinesFromEntries(entries).join('\n');
+      const jsonl = entries.map((e) => JSON.stringify(e)).join('\n');
+      downloadTextFile('patpat_logs_compact.txt', compactTxt);
+      downloadTextFile('patpat_logs_raw.jsonl', jsonl);
+    });
+  }
+}
+
 function formatEta(ms) {
   if (!isFinite(ms) || ms <= 0) return '-';
   const s = Math.ceil(ms / 1000);
   const m = Math.floor(s / 60);
   const r = s % 60;
   return m > 0 ? `${m}dk ${r}sn` : `${r}sn`;
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function statusLabelTr(status) {
+  const map = {
+    pending: 'Beklemede',
+    processing: 'İşleniyor',
+    completed: 'Tamamlandı',
+    cancelled: 'İptal',
+    returnprocess: 'İade',
+    problematic: 'Sorunlu',
+    partial: 'Kısmi',
+    inprogress: 'Devam Ediyor',
+    inprogres: 'Devam Ediyor',
+  };
+  const key = String(status || '').toLowerCase();
+  return map[key] || (status || '-');
 }
 
 function setScanBadge(text, level = 'info') {
@@ -73,10 +147,11 @@ function updateScanUI() {
     } else {
       refs.scanFailures.classList.remove('hidden');
       refs.scanFailures.innerHTML = '<div style="font-size:12px;color:var(--muted-color);">Başarısız sayfalar</div>' + scanUI.failures.map((f, i) => {
-        const u = f.source_url || '';
-        const why = `${f.code || 'HATA'}: ${f.message || ''}`;
+        const u = escapeHtml(f.source_url || '');
+        const why = escapeHtml(`${f.code || 'HATA'}: ${f.message || ''}`);
+        const kind = f.kind === 'smm' ? 'SMM' : 'HESAP';
         return `<div class="scan-failure-item" data-idx="${i}">
-          <div class="scan-failure-text"><strong>${f.kind === 'smm' ? 'SMM' : 'HESAP'}</strong> — ${u}<br/><span style="color:var(--muted-color)">${why}</span></div>
+          <div class="scan-failure-text"><strong>${kind}</strong> — ${u}<br/><span style="color:var(--muted-color)">${why}</span></div>
           <div class="scan-failure-actions">
             <button type="button" class="btnRetryFail">Tekrar Dene</button>
             <button type="button" class="btnSkipFail">Atla</button>
@@ -116,7 +191,7 @@ function initRefs() {
   refs.tableTitle = document.getElementById('tableTitle');
   refs.templateSelect = document.getElementById('templateSelect');
   refs.btnGenerateTemplate = document.getElementById('btnGenerateTemplate');
-  refs.btnSendMessage = document.getElementById('btnSendMessage');
+  refs.btnSendMessage = document.getElementById('btnSendMessage') || document.getElementById('btnSendReply');
   refs.btnCopyMessage = document.getElementById('btnCopyMessage');
   refs.messagePreview = document.getElementById('messagePreview');
   refs.policyWarning = document.getElementById('policyWarning');
@@ -139,8 +214,20 @@ function initRefs() {
   refs.clipboardFallback = document.getElementById('clipboardFallback');
   refs.logsBody = document.getElementById('logsBody');
   refs.logsEmpty = document.getElementById('logsEmpty');
+  refs.compactLogsOutput = document.getElementById('compactLogsOutput');
   refs.btnRetry = document.getElementById('btnRetry');
   refs.btnManual = document.getElementById('btnManual');
+  refs.btnPuterChatDemo = document.getElementById('btnPuterChatDemo');
+  refs.btnReadCustomerMessages = document.getElementById('btnReadCustomerMessages');
+  refs.btnAiDraft = document.getElementById('btnAiDraft');
+  refs.aiDraftText = document.getElementById('aiDraftText');
+  refs.aiAdminNote = document.getElementById('aiAdminNote');
+  refs.aiModeTemplate = document.getElementById('aiModeTemplate');
+  refs.aiModeManual = document.getElementById('aiModeManual');
+  refs.aiModeAutopilot = document.getElementById('aiModeAutopilot');
+  refs.statTotalOrders = document.getElementById('statTotalOrders');
+  refs.statProblematic = document.getElementById('statProblematic');
+  refs.statReturnprocess = document.getElementById('statReturnprocess');
 }
 
 // UI state güncelleme fonksiyonları
@@ -168,6 +255,66 @@ function rowMatchesQuery(row, q) {
   return hay.includes(qq);
 }
 
+function renderOverviewStats() {
+  const rows = recordStore.toArray('orders');
+  const total = rows.length;
+  const problematic = rows.filter((r) => String(r.status || '').toLowerCase() === 'problematic').length;
+  const returns = rows.filter((r) => String(r.status || '').toLowerCase() === 'returnprocess').length;
+  if (refs.statTotalOrders) refs.statTotalOrders.textContent = String(total);
+  if (refs.statProblematic) refs.statProblematic.textContent = String(problematic);
+  if (refs.statReturnprocess) refs.statReturnprocess.textContent = String(returns);
+}
+
+function getSelectedOrderAndSmm() {
+  if (!selectedOrderId) return { orderRow: null, smmRow: null };
+  const orderRow = recordStore.orders.get(String(selectedOrderId));
+  const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
+  return { orderRow, smmRow };
+}
+
+function updateAiControls() {
+  const { orderRow } = getSelectedOrderAndSmm();
+  const hasSelection = Boolean(orderRow);
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = !hasSelection;
+  if (refs.btnAiDraft) refs.btnAiDraft.disabled = !hasSelection;
+  if (refs.aiAdminNote) {
+    refs.aiAdminNote.classList.remove('hidden');
+    refs.aiAdminNote.textContent = hasSelection
+      ? 'Gecikme/İade/Problem tespit edildi; uygun şablon önerildi.'
+      : 'Önce tablodan bir sipariş seç.';
+  }
+}
+
+async function buildPuterDraft(orderRow, smmRow) {
+  const selectedType = refs.templateSelect?.value || 'auto';
+  const baseTemplate = generateMessage(orderRow, smmRow, selectedType, state.rulesPack);
+  const banned = state.rulesPack?.policy?.banned_tokens || ['MAX', 'HIZ', 'FİYAT'];
+
+  if (!(globalThis.puter && puter.ai && typeof puter.ai.chat === 'function')) {
+    return baseTemplate;
+  }
+
+  const prompt = [
+    'Türkçe müşteri destek asistanısın.',
+    'Aşağıdaki şablon iskeletini koru, sadece gerekli yerleri nazikçe iyileştir.',
+    `Şablon tipi: ${selectedType}`,
+    `Sipariş Durumu: ${statusLabelTr(smmRow?.status || orderRow?.status || '')}`,
+    `Müşteri: ${orderRow?.buyer_username || '-'}`,
+    `Yasaklı kelimeler: ${banned.join(', ')}`,
+    'Çıktıda yasaklı kelimeleri kullanma.',
+    'Temel şablon:',
+    baseTemplate,
+  ].join('\n');
+
+  try {
+    const aiRes = await puter.ai.chat(prompt);
+    const text = String(aiRes ?? '').trim();
+    return text || baseTemplate;
+  } catch {
+    return baseTemplate;
+  }
+}
+
 function renderOrdersTable() {
   const allRows = recordStore.toArray('orders');
   const q = (state.searchQuery || '').trim();
@@ -187,7 +334,7 @@ function renderOrdersTable() {
     tr.appendChild(tdId);
     // Durum
     const tdStatus = document.createElement('td');
-    tdStatus.textContent = row.status;
+    tdStatus.textContent = statusLabelTr(row.status);
     tr.appendChild(tdStatus);
     // İlan URL
     const tdUrl = document.createElement('td');
@@ -226,6 +373,7 @@ function renderOrdersTable() {
     refs.ordersBody.appendChild(tr);
   });
   updateTableTitle(rows.length);
+  renderOverviewStats();
 }
 
 // Seçili satır state
@@ -242,8 +390,10 @@ function selectOrderRow(orderId) {
   fillSmmDetails(orderRow, smmRow);
   // mesajı otomatik üret
   const type = refs.templateSelect.value;
-  const message = smmRow ? generateMessage(orderRow, smmRow, type) : '';
+  const message = smmRow ? generateMessage(orderRow, smmRow, type, state.rulesPack) : '';
   updateMessagePreview(message);
+  if (refs.aiDraftText) refs.aiDraftText.value = message || '';
+  updateAiControls();
 }
 
 function fillSmmDetails(orderRow, smmRow) {
@@ -272,6 +422,9 @@ function renderLogs() {
   const level = refs.logLevelFilter?.value || '';
   const search = refs.logSearchInput?.value?.trim?.() || '';
   const logs = LogManager.getLogs({ level, search });
+  if (!refs.logsBody || !refs.logsEmpty) {
+    return;
+  }
   refs.logsBody.innerHTML = '';
   if (!logs.length) {
     refs.logsEmpty.style.display = 'block';
@@ -296,6 +449,10 @@ function renderLogs() {
     });
     refs.logsBody.appendChild(tr);
   });
+  if (refs.compactLogsOutput) {
+    refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
+  }
+  applySimplify(document);
 }
 
 // Export fonksiyonları
@@ -377,8 +534,7 @@ async function retryFailure(f) {
     const smmId = f.smm_id;
     const { orders } = await taraAnabayiniz({ smmIds: [smmId] });
     orders.forEach(o => recordStore.upsertSmmOrder(o));
-    LogManager.addLog({ level: 'info', module: 'scan', action: 'retry_smm', result: 'ok', message: String(smmId) });
-    renderLogs();
+    pushLog({ level: 'info', module: 'scan', action: 'retry_smm', result: 'ok', message: String(smmId) });
     return;
   }
 
@@ -392,9 +548,15 @@ async function retryFailure(f) {
   const q = (state.searchQuery || '').trim();
   if (q) rows = rows.filter(r => rowMatchesQuery(r, q));
   rows.forEach(o => recordStore.upsertOrder(o));
+  recordStore.orders.forEach((order, key) => {
+    if (!order.message_url) {
+      const buyer = String(order.buyer_username || '').trim();
+      order.message_url = buyer ? `https://hesap.com.tr/u/${encodeURIComponent(buyer)}` : null;
+      recordStore.orders.set(key, order);
+    }
+  });
   renderOrdersTable();
-  LogManager.addLog({ level: 'info', module: 'scan', action: 'retry_hesap', result: `rows:${rows.length}`, message: url });
-  renderLogs();
+  pushLog({ level: 'info', module: 'scan', action: 'retry_hesap', result: `rows:${rows.length}`, message: url });
 }
 
 function attachEvents() {
@@ -430,7 +592,7 @@ function attachEvents() {
     if (selectedOrderId) {
       const orderRow = recordStore.orders.get(String(selectedOrderId));
       const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
-      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value) : '';
+      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value, state.rulesPack) : '';
       updateMessagePreview(message);
     }
   });
@@ -438,18 +600,40 @@ function attachEvents() {
     if (selectedOrderId) {
       const orderRow = recordStore.orders.get(String(selectedOrderId));
       const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
-      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value) : '';
+      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value, state.rulesPack) : '';
       updateMessagePreview(message);
     }
   });
-  refs.btnSendMessage.addEventListener('click', async () => {
-    if (selectedOrderId) {
-      const orderRow = recordStore.orders.get(String(selectedOrderId));
-      const message = refs.messagePreview.value;
-      const result = await sendMessage({ buyerUsername: orderRow?.buyer_username, orderId: orderRow?.order_id, messageText: message, dryRun: state.dryRun });
-      LogManager.addLog({ level: result === 'ERROR' ? 'error' : 'info', module: 'ui', action: 'sendMessage', result });
-      renderLogs();
+  refs.btnSendMessage.addEventListener('click', async (ev) => {
+    if (!selectedOrderId) return;
+
+    const orderRow = recordStore.orders.get(String(selectedOrderId));
+    const message = refs.messagePreview.value || '';
+
+    if (state.dryRun) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      await copyToClipboard(message);
+      pushLog({ level: 'info', module: 'ui', action: 'sendMessage', result: 'DRY_RUN_COPY_ONLY' });
+      return;
     }
+
+    const username = String(orderRow?.buyer_username || '').trim();
+    if (username) {
+      const profileUrl = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
+      await copyToClipboard(message);
+      window.open(profileUrl, '_blank', 'noopener,noreferrer');
+      pushLog({ level: 'info', module: 'ui', action: 'open_message_profile', result: profileUrl });
+      return;
+    }
+
+    const result = await sendMessage({
+      buyerUsername: orderRow?.buyer_username,
+      orderId: orderRow?.order_id,
+      messageText: message,
+      dryRun: state.dryRun,
+    });
+    pushLog({ level: result === 'ERROR' ? 'error' : 'warn', module: 'ui', action: 'sendMessageFallback', result });
   });
   refs.btnCopyMessage.addEventListener('click', async () => {
     try {
@@ -463,10 +647,8 @@ function attachEvents() {
 
   // log araçları
   if (refs.btnCopyAllLogs) refs.btnCopyAllLogs.addEventListener('click', async () => {
-    const level = refs.logLevelFilter?.value || '';
-    const search = refs.logSearchInput?.value?.trim?.() || '';
-    const text = LogManager.exportText({ level, search });
-    await copyToClipboard(text);
+    const compactTxt = compactLinesFromEntries(logStore.getLastRun()).join('\n');
+    await copyToClipboard(compactTxt);
   });
   if (refs.btnCopySelectedLogs) refs.btnCopySelectedLogs.addEventListener('click', async () => {
     const ids = new Set(getSelectedLogIds());
@@ -477,10 +659,11 @@ function attachEvents() {
     await copyToClipboard(text);
   });
   if (refs.btnExportLogs) refs.btnExportLogs.addEventListener('click', () => {
-    const level = refs.logLevelFilter?.value || '';
-    const search = refs.logSearchInput?.value?.trim?.() || '';
-    const jsonl = LogManager.exportJsonl({ level, search });
-    downloadTextFile(`patpat_logs_${Date.now()}.jsonl`, jsonl);
+    const entries = logStore.getLastRun();
+    const compactTxt = compactLinesFromEntries(entries).join('\n');
+    const jsonl = entries.map((e) => JSON.stringify(e)).join('\n');
+    downloadTextFile('patpat_logs_compact.txt', compactTxt);
+    downloadTextFile('patpat_logs_raw.jsonl', jsonl);
   });
   if (refs.btnClearLogs) refs.btnClearLogs.addEventListener('click', () => {
     if (!confirm('Loglar temizlensin mi?')) return;
@@ -489,14 +672,44 @@ function attachEvents() {
   });
   refs.btnRetry.addEventListener('click', () => {
     // retry son hatalı kayıt; stub
-    LogManager.addLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
-    renderLogs();
+    pushLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
   });
   refs.btnManual.addEventListener('click', () => {
     // manual handoff; stub
-    LogManager.addLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
-    renderLogs();
+    pushLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
   });
+
+  if (refs.aiModeTemplate) refs.aiModeTemplate.addEventListener('change', () => { if (refs.aiModeTemplate.checked) state.aiMode = 'TEMPLATE'; });
+  if (refs.aiModeManual) refs.aiModeManual.addEventListener('change', () => { if (refs.aiModeManual.checked) state.aiMode = 'MANUAL'; });
+  if (refs.aiModeAutopilot) refs.aiModeAutopilot.addEventListener('change', () => { if (refs.aiModeAutopilot.checked) state.aiMode = 'AUTOPILOT'; });
+
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.addEventListener('click', () => {
+    const { orderRow } = getSelectedOrderAndSmm();
+    if (!orderRow) return;
+    const username = String(orderRow.buyer_username || '').trim();
+    if (!username) return;
+    const messagePage = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
+    window.open(messagePage, '_blank', 'noopener,noreferrer');
+    pushLog({ level: 'info', module: 'ai', action: 'open_message_page', result: messagePage });
+  });
+
+  if (refs.btnAiDraft) refs.btnAiDraft.addEventListener('click', async () => {
+    const { orderRow, smmRow } = getSelectedOrderAndSmm();
+    if (!orderRow) return;
+    refs.btnAiDraft.disabled = true;
+    const draft = await buildPuterDraft(orderRow, smmRow);
+    if (refs.aiDraftText) refs.aiDraftText.value = draft;
+    updateMessagePreview(draft);
+    refs.btnAiDraft.disabled = false;
+    pushLog({ level: 'info', module: 'ai', action: 'draft', result: `len:${String(draft || '').length}` });
+  });
+
+  if (refs.btnPuterChatDemo) {
+    refs.btnPuterChatDemo.addEventListener('click', () => {
+      const url = chrome.runtime.getURL('puter_chat_demo.html');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
+  }
 }
 
 // Taramayı başlat
@@ -506,8 +719,8 @@ async function startScan() {
   refs.btnStart.disabled = true;
   refs.btnStop.disabled = false;
   state.abortController = new AbortController();
-  LogManager.addLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
-  renderLogs();
+  logStore.startRun({ mode: state.mode, statusFilters: [...state.statusFilters], pageLimit: state.pageLimit, searchQuery: state.searchQuery, startedAt: Date.now() });
+  pushLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
   // temizle mevcut veriler
   recordStore.orders.clear();
   recordStore.smmOrders.clear();
@@ -527,8 +740,7 @@ async function startScan() {
       }
       updateScanUI();
     }
-    LogManager.addLog({ level: progress?.stage === 'error' ? 'error' : 'info', module: 'kaziyici_hesap', action: 'progress', result: JSON.stringify(progress).slice(0,160), error: progress?.stage === 'error' ? `${progress.code || ''} ${progress.message || ''}` : '' });
-    renderLogs();
+    pushLog({ level: progress?.stage === 'error' ? 'error' : 'info', module: 'kaziyici_hesap', action: 'progress', result: JSON.stringify(progress).slice(0,160), error: progress?.stage === 'error' ? `${progress.code || ''} ${progress.message || ''}` : '' });
   } });
   orders.forEach(o => recordStore.upsertOrder(o));
   // FIX5_ERRORS_TO_FAIL
@@ -544,8 +756,7 @@ async function startScan() {
   const smmIds = orders.map(o => o.smm_id).filter(Boolean);
   if (smmIds.length) {
     const { orders: smmOrders } = await taraAnabayiniz({ smmIds, abortSignal: state.abortController.signal, onProgress: progress => {
-      LogManager.addLog({ level: 'info', module: 'kaziyici_anabayiniz', action: 'progress', result: JSON.stringify(progress).slice(0,100) });
-      renderLogs();
+      pushLog({ level: 'info', module: 'kaziyici_anabayiniz', action: 'progress', result: JSON.stringify(progress).slice(0,100) });
     } });
     smmOrders.forEach(smm => recordStore.upsertSmmOrder(smm));
   }
@@ -553,13 +764,14 @@ async function startScan() {
   recordStore.orders.forEach((order, key) => {
     if (order.smm_id && recordStore.smmOrders.has(String(order.smm_id))) {
       const smm = recordStore.smmOrders.get(String(order.smm_id));
-      // baseline: attach message_url placeholder
-      order.message_url = null;
+      const buyer = String(order.buyer_username || '').trim();
+      order.message_url = buyer ? `https://hesap.com.tr/u/${encodeURIComponent(buyer)}` : null;
       recordStore.orders.set(key, order);
     }
   });
   renderOrdersTable();
-  renderLogs();
+  logStore.endRun({ finishedAt: Date.now(), ordersCount: recordStore.orders.size, smmCount: recordStore.smmOrders.size });
+  scheduleRenderLogs();
 
   // FIX5: scan finish summary
   scanUI.running = false;
@@ -595,8 +807,8 @@ function stopScan() {
   updateScanUI();
 
   state.isRunning = false;
-    LogManager.addLog({ level: 'warn', module: 'ui', action: 'stop', result: 'aborted' });
-    renderLogs();
+    logStore.endRun({ finishedAt: Date.now(), aborted: true });
+    pushLog({ level: 'warn', module: 'ui', action: 'stop', result: 'aborted' });
     scanUI.running = false;
     setScanBadge('Durduruldu', 'warn');
     if (refs.scanEta) refs.scanEta.textContent = '-';
@@ -607,28 +819,44 @@ function stopScan() {
 }
 
 // Başlatıcı
-function init() {
+async function init() {
   initRefs();
   attachEvents();
-  // Logları oturumda sakla ve gerçek zamanlı güncelle
-  LogManager.init().then(() => {
-    renderLogs();
-  });
+
+  await LogManager.init();
+  try {
+    state.rulesPack = await ensureRulesPackLoaded();
+    pushLog({
+      level: 'info',
+      module: 'ui',
+      action: 'PUTER_RULES_LOADED',
+      result: JSON.stringify({ rules_version: state.rulesPack?.rules_version, md_hash: state.rulesPack?.md_hash }),
+    });
+  } catch (e) {
+    state.rulesPack = null;
+    pushLog({
+      level: 'warn',
+      module: 'ui',
+      action: 'PUTER_RULES_LOAD_FAIL',
+      error: String(e?.message || e),
+    });
+  }
+
   LogManager.subscribe(() => {
-    // çok sık çağrı olursa bile basit render yeterli
-    renderLogs();
+    scheduleRenderLogs();
   });
   renderOrdersTable();
   renderLogs();
+  if (refs.compactLogsOutput) {
+    refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
+  }
+  applySimplify(document);
 }
 
 if (document.readyState === 'loading') {
-  if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
-
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+  });
 } else {
   init();
 }
