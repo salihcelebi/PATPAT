@@ -1,320 +1,94 @@
-/*
- * stiller.css
- * Sipariş ve Şikayet Yönetimi arayüzü için stil dosyası.
- * Bu dosyada arayüz bileşenlerinin grid düzeni, renkler, responsive davranışlar
- * ve çeşitli durum stilleri tanımlanmıştır. CSS değişkenleri kullanılarak
- * temayı kolayca değiştirmek mümkündür.
- */
+/* =========================
+FILE: stiller.css (REVİZYON EKLERİ)
+GEREKSİNİM: PILL UI + LOG COLLAPSE + TAB ALANI + BOŞLUK STANDARDI
+NOT: Mevcut koyu tema korunur; sadece eksik sınıflar eklenir.
+========================= */
 
-/* Renk değişkenleri */
-:root {
-  --bg-color: #11132a;
-  --card-color: #20193d;
-  --line-color: rgba(255, 255, 255, 0.12);
-  --text-color: #f2edff;
-  --muted-color: #b8aedd;
-  --danger-color: #cf2f38;
-  --success-color: #37b24d;
-  --warning-color: #e0a800;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background: linear-gradient(180deg, var(--bg-color), #1a1531);
-  color: var(--text-color);
-  font-family: system-ui, sans-serif;
-  font-size: 14px;
-}
-
-/* Grid layout: üst bar, main area ve log paneli */
-#app.grid-layout {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Üst bar */
-.top-bar {
+/* --- EK: ÜST BAR SATIRLARI (2 SATIRLI GRID/FLEX) --- */
+.top-row {
+  /* GEREKSİNİM: ÇAKIŞMA/TAŞMA AZALSIN, SATIRLAR NET OLSUN */
   display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.top-row--actions { margin-bottom: 0; }
+
+/* --- EK: PILL UI --- */
+.status-pills {
+  /* GEREKSİNİM: NATIVE MULTI SELECT YERİNE PILL GÖRÜNÜM */
+  display: flex;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
-  background-color: var(--card-color);
-  border-bottom: 1px solid var(--line-color);
-  padding: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  max-width: 520px;
 }
-
-.top-bar .bar-item {
-  display: flex;
-  align-items: center;
-  margin-right: 12px;
-  margin-bottom: 4px;
-}
-
-.top-bar label {
-  margin-right: 6px;
-  font-weight: 600;
-}
-
-.top-bar select,
-.top-bar input[type="text"],
-.top-bar input[type="number"],
-.top-bar input[type="checkbox"],
-.top-bar button {
-  height: 32px;
-  border-radius: 8px;
+.status-pill-btn {
+  /* GEREKSİNİM: BUTON BOYUTLARINI STANDARDİZE ET */
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
   border: 1px solid var(--line-color);
   background: #191633;
   color: var(--text-color);
-  padding: 0 8px;
-  font-size: 13px;
-}
-
-.top-bar button {
   cursor: pointer;
-  margin-left: 4px;
+  font-size: 12px;
+}
+.status-pill-btn.active {
+  /* GEREKSİNİM: AKTİF/ PASİF NET */
+  border-color: var(--success-color);
+  background: rgba(55, 178, 77, 0.25);
 }
 
-.top-bar button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* Ana içerik */
-.main-area {
+/* --- EK: TAB BAR (STICKY) --- */
+.g-tabs {
   display: flex;
-  overflow: hidden;
-}
-
-.table-section {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  overflow-y: auto;
-  background-color: var(--card-color);
-  border-right: 1px solid var(--line-color);
-}
-
-.table-header {
-  margin-bottom: 8px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  overflow-y: auto;
-  flex: 1;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 650px;
-}
-
-thead th {
+  gap: 6px;
+  border-bottom: 1px solid var(--line-color);
+  padding: 6px 10px;
   position: sticky;
   top: 0;
-  background-color: var(--bg-color);
-  border-bottom: 1px solid var(--line-color);
-  padding: 6px;
-  text-align: left;
-  font-weight: 600;
+  z-index: 5;
+  background: var(--card-color);
 }
-
-tbody td {
-  border-bottom: 1px solid var(--line-color);
-  padding: 6px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-tbody tr.selected {
-  background-color: rgba(55, 178, 77, 0.2);
-}
-
-tbody td a {
-  color: var(--success-color);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 12px;
-  color: var(--muted-color);
-}
-
-/* Sağ panel */
-.side-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  overflow-y: auto;
-  background-color: var(--card-color);
-}
-
-.detail-card,
-.template-card {
-  background-color: #191633;
-  border: 1px solid var(--line-color);
+.tab-btn {
+  height: 32px;
+  padding: 0 10px;
   border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 12px;
-}
-
-.detail-card h4,
-.template-card h4 {
-  margin: 0 0 8px 0;
-  font-size: 15px;
-}
-
-.template-card textarea {
-  width: 100%;
   border: 1px solid var(--line-color);
-  border-radius: 6px;
-  background: #1f1940;
+  background: #191633;
   color: var(--text-color);
-  padding: 8px;
-  resize: vertical;
-  font-family: monospace;
-  min-height: 120px;
-}
-
-.policy-warning {
-  margin-top: 6px;
-  color: var(--danger-color);
+  cursor: pointer;
   font-weight: 600;
 }
-.policy-warning.hidden {
+.tab-btn.active {
+  border-color: var(--success-color);
+  background: rgba(55, 178, 77, 0.25);
+}
+.tabs-spacer { flex: 1; }
+
+/* --- EK: LOG COLLAPSE (grid-layout.logs-closed) --- */
+#app.grid-layout.logs-closed .log-panel {
+  /* GEREKSİNİM: LOG PANEL KAPANINCA KÜÇÜLSÜN */
+  max-height: 44px;
+}
+#app.grid-layout.logs-closed .log-table-wrap,
+#app.grid-layout.logs-closed .log-actions {
   display: none;
 }
 
-.template-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
+/* --- EK: BOŞ DURUM HÜCRESİ (tbody içine konmasın, ordersEmpty kullanılsın) --- */
+#ordersBody .empty-state { display: none; } /* GEREKSİNİM: ÇAKIŞMA ÖNLE */
 
-.template-actions select,
-.template-actions button {
-  flex: 1;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--line-color);
-  background: #191633;
-  color: var(--text-color);
-  cursor: pointer;
-}
-
-.template-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* Log panel */
-.log-panel {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--card-color);
-  border-top: 1px solid var(--line-color);
-  max-height: 25vh;
-  overflow: hidden;
-}
-
-.log-header {
-  display: flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--line-color);
-}
-
-.log-header h4 {
-  margin: 0;
-  margin-right: 12px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.log-header select {
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--line-color);
-  background: #191633;
-  color: var(--text-color);
-  padding: 0 6px;
-}
-
-.log-table-wrap {
-  overflow-y: auto;
-  flex: 1;
-}
-
-.log-table-wrap table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 600px;
-}
-
-.log-table-wrap thead th {
-  position: sticky;
-  top: 0;
-  background-color: var(--bg-color);
-  border-bottom: 1px solid var(--line-color);
-  padding: 4px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.log-table-wrap tbody td {
-  border-bottom: 1px solid var(--line-color);
-  padding: 4px;
-  font-size: 11px;
-}
-
-.log-actions {
-  display: flex;
-  gap: 8px;
-  padding: 6px 10px;
-  border-top: 1px solid var(--line-color);
-}
-
-.log-actions button {
-  flex: 1;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--line-color);
-  background: #191633;
-  color: var(--text-color);
-  cursor: pointer;
-}
-
-.log-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* Mobil düzen */
+/* --- EK: MOBİL DOKUNMA HEDEFİ --- */
 @media (max-width: 900px) {
-  .main-area {
-    flex-direction: column;
-  }
-  .side-panel {
-    order: 1;
-    flex: none;
-    max-height: 45vh;
-    overflow-y: auto;
-  }
-  .table-section {
-    order: 2;
-    max-height: 55vh;
+  .top-bar select,
+  .top-bar input[type="text"],
+  .top-bar input[type="number"],
+  .top-bar button,
+  .status-pill-btn,
+  .tab-btn {
+    height: 44px; /* GEREKSİNİM: 44PX */
   }
 }

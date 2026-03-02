@@ -15,6 +15,25 @@ import {
 } from './kurallar_dom_regex_url.js';
 import { LogManager } from './kayit_ve_loglama.js';
 
+
+// FIX5_FETCH_HTML: gerçek tarama için HTML çekme yardımcıları
+async function fetchHtml(url, abortSignal) {
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    redirect: 'follow',
+    signal: abortSignal,
+    headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }
+  });
+  if (!res.ok) {
+    const err = new Error(`HTTP_${res.status}`);
+    err.code = `HTTP_${res.status}`;
+    throw err;
+  }
+  return await res.text();
+}
+
 /**
  * Verilen HTML metninden SMM sipariş tablosunu parse eder.
  * @param {string} html
@@ -49,9 +68,20 @@ export async function taraAnabayiniz({ smmIds = [], abortSignal, onProgress = ()
       if (abortSignal?.aborted) throw new Error('ABORTED');
       const url = `https://anabayiniz.com/orders?search=${encodeURIComponent(smmId)}`;
       onProgress({ source_url: url, smm_id: smmId, run_id: runId });
-      // TODO: fetch HTML from url; currently returns empty string for test
-      const html = '';
+      // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
+      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'fetch' });
+      let html = '';
+      try {
+        html = await fetchHtml(url, abortSignal);
+      } catch (e) {
+        const code = e?.code || 'FETCH_ERROR';
+        const msg = e?.message || String(e);
+        errors.push({ source_url: url, smm_id: smmId, code, message: msg, stage: 'fetch' });
+        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'error', code, message: msg });
+        continue;
+      }
       const rows = parseAnabayinizOrdersFromHtml(html, { source_url: url, smm_id: smmId });
+      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'parsed', rowsFound: rows.length });
       orders.push(...rows);
     }
   } catch (err) {

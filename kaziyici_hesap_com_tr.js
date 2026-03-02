@@ -20,6 +20,45 @@ import {
 } from './kurallar_dom_regex_url.js';
 import { LogManager } from './kayit_ve_loglama.js';
 
+
+// FIX5_FETCH_HTML: gerçek tarama için HTML çekme yardımcıları
+async function fetchHtml(url, abortSignal) {
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    redirect: 'follow',
+    signal: abortSignal,
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    }
+  });
+  if (!res.ok) {
+    const err = new Error(`HTTP_${res.status}`);
+    err.code = `HTTP_${res.status}`;
+    throw err;
+  }
+  return await res.text();
+}
+
+function normalizeQuery(q) {
+  return String(q || '').trim().toLowerCase();
+}
+
+function orderMatchesQuery(row, q) {
+  if (!q) return true;
+  const hay = [
+    row.order_id,
+    row.status,
+    row.ilan_url,
+    row.buyer_username,
+    row.smm_id,
+    row.message_url,
+    row.source_url
+  ].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
 /**
  * Sipariş kartından temel bilgileri çıkarır. Bu fonksiyon, Hesap.com.tr
  * sayfasında bulunan order card elemanından sipariş id, durum ve alıcı
@@ -32,8 +71,10 @@ import { LogManager } from './kayit_ve_loglama.js';
 function extractOrderFromCard(cardEl, ctx = {}) {
   const idSpan = cardEl.querySelector(OrderCardRules.ORDER_ID_TEXT_SPAN);
   const orderId = OrderIdRules.extractFromText(idSpan?.textContent);
-  const ilanLink = cardEl.querySelector('a[href*="/ilan/"]')?.href || null;
-  const seller = SellerRules.getMyUsernameFromHeader(document) || null;
+  const ilanHref = cardEl.querySelector('a[href*="/ilan/"]')?.getAttribute('href') || null;
+  const ilanLink = ilanHref ? new URL(ilanHref, ctx.source_url || 'https://hesap.com.tr').toString() : null; // FIX5_CTX_DOC
+  const docRef = ctx.doc || document; // FIX5_CTX_DOC
+  const seller = SellerRules.getMyUsernameFromHeader(docRef) || null;
   const buyer = BuyerRules.findBuyerUsernameFromOrderCard(cardEl, seller) || null;
   // SMM ID, kart metninde “SMM ID:” var mı?
   let smmId = null;
@@ -47,7 +88,7 @@ function extractOrderFromCard(cardEl, ctx = {}) {
     buyer_username: buyer,
     smm_id: smmId,
     message_url: null,
-    source_url: ctx.source_url || location.href,
+    source_url: ctx.source_url || '',
     page_no: ctx.page_no,
     scraped_at: new Date().toISOString(),
   };
@@ -65,7 +106,7 @@ export function parseHesapOrdersFromHtml(html, ctx = {}) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const cardNodes = Array.from(doc.querySelectorAll(OrderCardRules.ORDER_CARD_ROOT));
-  const orders = cardNodes.map(card => extractOrderFromCard(card, ctx)).filter(o => o.order_id);
+  const orders = cardNodes.map(card => extractOrderFromCard(card, { ...ctx, doc })).filter(o => o.order_id);
   return orders;
 }
 
@@ -100,10 +141,22 @@ export async function taraHesap({ mode = 'analysis', statusFilters = [], pageLim
         const url = page > 1 ? buildPagedUrl(baseUrl, page) : baseUrl;
         // progress callback
         onProgress({ source_url: url, status, page_no: page, run_id: runId });
-        // Şu anda fetch çağrısı yapmıyoruz; place-holder: UI/test için boş sonuç döndür
-        // TODO: Manifest host izinleriyle fetch yapılabilir; CORS vs. değerlendirilmeli.
-        const html = '';
-        const pageOrders = parseHesapOrdersFromHtml(html, { status, source_url: url, page_no: page });
+        // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
+        onProgress({ source_url: url, status, page_no: page, stage: 'fetch' });
+        let html = '';
+        try {
+          html = await fetchHtml(url, abortSignal);
+        } catch (e) {
+          const code = e?.code || 'FETCH_ERROR';
+          const msg = e?.message || String(e);
+          errors.push({ source_url: url, status, page_no: page, code, message: msg, stage: 'fetch' });
+          onProgress({ source_url: url, status, page_no: page, stage: 'error', code, message: msg });
+          continue;
+        }
+        let pageOrders = parseHesapOrdersFromHtml(html, { status, source_url: url, page_no: page });
+        const q = normalizeQuery(searchQuery);
+        if (q) pageOrders = pageOrders.filter(o => orderMatchesQuery(o, q));
+        onProgress({ source_url: url, status, page_no: page, stage: 'parsed', rowsFound: pageOrders.length, query: q });
         // erken durdurma: şikayet modunda ilk sayfa boşsa stop
         if (mode === 'complaint' && page === 1 && pageOrders.length === 0) {
           break;
