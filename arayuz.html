@@ -3,191 +3,90 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sipariş ve Şikayet Yönetimi</title>
-  <!-- Stil dosyası -->
+  <title>PATPAT Arayüz</title>
   <link rel="stylesheet" href="stiller.css" />
 </head>
 <body data-page="teksekme">
-  <!-- Uygulama kabuğu: üst bar, ana tablo ve sağ panel, alt log paneli -->
   <div id="app" class="grid-layout">
-    <!-- Üst bar: filtreler ve mod seçimleri -->
-    <header id="topBar" class="top-bar">
-      <div class="bar-item">
-        <label for="modeSelect">Mod:</label>
-        <select id="modeSelect">
-          <option value="analysis">Analiz Modu</option>
-          <option value="complaint">Şikayet Modu</option>
-        </select>
-      </div>
-      <div class="bar-item">
-        <label for="statusSelect">Durum:</label>
-        <select id="statusSelect" multiple>
-          <option value="pending">Beklemede</option>
-          <option value="processing">İşleniyor</option>
-          <option value="completed">Tamamlandı</option>
-          <option value="cancelled">İptal</option>
-          <option value="returnprocess">İade Süreci</option>
-          <option value="problematic">Sorunlu</option>
-        </select>
-      </div>
-      <div class="bar-item">
-        <label for="searchInput">Arama:</label>
-        <input id="searchInput" type="text" placeholder="Sipariş ID / Müşteri / SMM ID" />
-      </div>
-      <div class="bar-item">
-        <label for="pageLimitInput">Sayfa Limiti:</label>
-        <input id="pageLimitInput" type="number" min="0" step="1" value="0" />
-      </div>
-      <!-- FIX5: Gelişmiş kontroller (arayüzü sadeleştir) -->
-      <details id="advancedControls" class="advanced-controls">
-        <summary class="advanced-summary">Gelişmiş</summary>
-        <div class="advanced-inner">
-
-      <div class="bar-item">
-        <label for="autoSendToggle" title="Eşleşen kayıtlara otomatik mesaj gönderir.">Oto Gönder:</label>
-        <input id="autoSendToggle" type="checkbox" />
-      </div>
-      <div class="bar-item">
-        <label for="dryRunToggle" title="Simülasyon: Mesaj göndermez, sadece deneme yapar.">Simülasyon:</label>
-        <input id="dryRunToggle" type="checkbox" checked />
-      </div>
-      
+    <header id="topBar" class="top-bar card">
+      <div class="top-row top-row--filters">
+        <div class="bar-item"><label for="modeSelect">Mod</label><select id="modeSelect"><option value="analysis">Analiz</option><option value="complaint">Şikayet</option></select></div>
+        <div class="bar-item bar-item--status">
+          <label>Durum</label>
+          <div id="statusPillsContainer" class="status-pills">
+            <button type="button" class="status-pill-btn" data-value="pending">Beklemede</button>
+            <button type="button" class="status-pill-btn" data-value="processing">İşleniyor</button>
+            <button type="button" class="status-pill-btn" data-value="completed">Tamamlandı</button>
+            <button type="button" class="status-pill-btn" data-value="cancelled">İptal</button>
+            <button type="button" class="status-pill-btn active" data-value="returnprocess">İade</button>
+            <button type="button" class="status-pill-btn active" data-value="problematic">Sorunlu</button>
+          </div>
+          <select id="statusSelect" multiple class="hidden"><option value="pending">pending</option><option value="processing">processing</option><option value="completed">completed</option><option value="cancelled">cancelled</option><option value="returnprocess" selected>returnprocess</option><option value="problematic" selected>problematic</option></select>
         </div>
-      </details>
-      <div class="bar-item actions">
-        <button id="btnStart">Taramayı Başlat</button>
-        <button id="btnStop" disabled>Durdur</button>
-        <button id="btnExportCsv" title="Sipariş tablosunu CSV olarak indir">CSV İndir</button>
-        <button id="btnExportJson" title="Sipariş tablosunu JSONL olarak indir">JSONL İndir</button>
+        <div class="bar-item"><label for="searchInput">Arama</label><input id="searchInput" type="text" placeholder="Sipariş / Müşteri / SMM" /></div>
+        <div class="bar-item"><label for="pageLimitInput">Sayfa limiti</label><input id="pageLimitInput" type="number" min="1" max="999" value="1" /></div>
       </div>
-
-    
-
-    <!-- FIX5: gerçek zamanlı tarama durumu -->
-    <section id="scanStatus" class="scan-status hidden">
-      <div class="scan-top">
-        <span id="scanStateBadge" class="scan-badge">Hazır</span>
-        <span id="scanCurrentUrl" class="scan-url">-</span>
+      <div class="top-row top-row--actions">
+        <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
+        <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Simülasyon</label><input id="dryRunToggle" type="checkbox" checked /></div>
       </div>
-      <div class="scan-mid">
-        <div class="scan-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div>
-        </div>
-        <div class="scan-metrics">
-          <span id="scanCount">0</span>/<span id="scanTotal">0</span> · <span id="scanPercent">0%</span> · <span id="scanEta">-</span>
-        </div>
-      </div>
-      <div id="scanSummary" class="scan-summary"></div>
-      <div id="scanFailures" class="scan-failures hidden"></div>
-    </section>
-    </header>
-    <!-- Ana içerik bölgesi -->
-    <main id="mainArea" class="main-area">
-      <!-- Tablo konteyneri -->
-      <section class="table-section">
-        <div class="table-header">
-          <h3 id="tableTitle">Toplam 0 satır.</h3>
-        </div>
-        
-    <!-- FIX4: Tab bar (Tablo / Loglar) -->
-    <div class="tabs-bar">
-      <button class="tab-btn active" id="tabTable" type="button">Tablo</button>
-      <button class="tab-btn" id="tabLogs" type="button">Loglar</button>
-      <div class="tabs-spacer"></div>
-      <button class="tab-btn subtle" id="tabToggleDetails" type="button" title="Detay panellerini aç/kapat">Detay</button>
-    </div>
-<div class="table-wrap">
-          <table id="ordersTable">
-            <thead>
-              <tr>
-                <th>🆔 Sipariş ID</th>
-                <th>🏷️ Durum</th>
-                <th>🧷 İlan URL</th>
-                <th>👤 Müşteri</th>
-                <th>🔢 SMM ID</th>
-                <th>💬 Mesaj Yolu</th>
-              </tr>
-            </thead>
-            <tbody id="ordersBody">
-              <!-- Dinamik olarak satırlar eklenecek -->
-            </tbody>
-          </table>
-          <div id="ordersEmpty" class="empty-state">Henüz veri yok.</div>
-        </div>
+      <section id="scanStatus" class="scan-status">
+        <div class="scan-top"><span id="scanStateBadge" class="pill">Hazır</span><span id="scanCurrentUrl">-</span></div>
+        <div class="scan-progress"><div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div></div>
+        <div class="scan-metrics"><span id="scanPercent">0%</span><span>·</span><span id="scanEta">-</span><span>·</span><span id="scanCount">0</span>/<span id="scanTotal">0</span></div>
+        <div id="scanSummary" class="scan-summary"></div>
+        <div id="scanFailures" class="hidden"></div>
       </section>
-      <!-- Sağ panel: seçili satır için detay ve mesaj oluşturucu -->
-      <aside id="sidePanel" class="side-panel">
-        <div class="detail-card">
-          <h4>SMM Detay</h4>
-          <div id="smmDetails">
-            <div><strong>SMM Sipariş ID:</strong> <span id="smm_order_id">-</span></div>
-            <div><strong>Tarih:</strong> <span id="smm_date">-</span></div>
-            <div><strong>Link:</strong> <a id="smm_link" href="#" target="_blank">-</a></div>
-            <div><strong>Başlangıç:</strong> <span id="smm_start">-</span></div>
-            <div><strong>Miktar:</strong> <span id="smm_quantity">-</span></div>
-            <div><strong>Servis:</strong> <span id="smm_service">-</span></div>
-            <div><strong>Durum:</strong> <span id="smm_status">-</span></div>
-            <div><strong>Kalan:</strong> <span id="smm_remains">-</span></div>
-          </div>
-        </div>
-        <div class="template-card">
-          <h4>Mesaj Önizleme</h4>
-          <textarea id="messagePreview" readonly rows="8"></textarea>
-          <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı ifadeler içeriyor.</div>
-          <div class="template-actions">
-            <select id="templateSelect">
-              <option value="auto">Otomatik Bilgilendirme</option>
-              <option value="complaint">Şikayet Yanıtı</option>
-            </select>
-            <button id="btnGenerateTemplate">Şablon Oluştur</button>
-            <button id="btnSendMessage">Gönder</button>
-            <button id="btnCopyMessage">Kopyala</button>
-          </div>
-        </div>
-      </aside>
+    </header>
+
+    <main id="mainArea" class="main-area card">
+      <section class="table-section">
+        <div class="tabs-bar g-tabs"><button class="tab-btn active" id="tabTable" type="button">Tablo</button><button class="tab-btn" id="tabLogs" type="button">Loglar</button><div class="tabs-spacer"></div></div>
+        <div class="table-header"><h3 id="tableTitle">Toplam 0 satır.</h3></div>
+        <div class="table-wrap"><table id="ordersTable"><thead><tr><th>🆔 Sipariş ID</th><th>🏷️ Durum</th><th>🧷 İlan URL</th><th>👤 Müşteri</th><th>🔢 SMM ID</th><th>💬 Mesaj Yolu</th></tr></thead><tbody id="ordersBody"></tbody></table><div id="ordersEmpty" class="empty-state">Henüz veri yok.</div></div>
+      </section>
     </main>
-    <!-- Alt panel: log akışı ve hata merkezi -->
-    <footer id="logPanel" class="log-panel">
-      <div class="log-header">
-        <h4>Loglar</h4>
-        <input id="logSearchInput" type="text" placeholder="Log ara (modül / aksiyon / hata)..." />
-        <select id="logLevelFilter">
-          <option value="">Seviye (hepsi)</option>
-          <option value="info">Bilgi</option>
-          <option value="warn">Uyarı</option>
-          <option value="error">Hata</option>
-        </select>
-      </div>
-      <div class="log-table-wrap">
-        <table id="logsTable">
-          <thead>
-            <tr>
-              <th>✓</th>
-              <th>Zaman</th>
-              <th>Seviye</th>
-              <th>Modül</th>
-              <th>Aksiyon</th>
-              <th>Sonuç</th>
-              <th>Hata</th>
-            </tr>
-          </thead>
-          <tbody id="logsBody"></tbody>
-        </table>
-        <div id="logsEmpty" class="empty-state">Henüz log yok.</div>
-      </div>
-      <div class="log-actions">
-        <button id="btnCopyAllLogs">TÜM LOGLARI KOPYALA</button>
-        <button id="btnCopySelectedLogs">SEÇİLİ LOGLARI KOPYALA</button>
-        <button id="btnExportLogs">LOGLARI DIŞA AKTAR</button>
-        <button id="btnClearLogs">LOGLARI TEMİZLE</button>
-        <button id="btnRetry">Yeniden Dene</button>
-        <button id="btnManual">Manuel Devret</button>
-      </div>
-      <textarea id="clipboardFallback" class="clipboard-fallback hidden" readonly></textarea>
+
+    <aside id="sidePanel" class="side-panel card">
+      <section class="ai-mode-card">
+        <!-- SCOD: BU GEREKSİNİM UYGULANDI - AI modu ve kontroller tek kartta toplandı. -->
+        <h4>AI Modu</h4>
+        <div class="ai-mode-options">
+          <label><input type="radio" name="aiMode" id="aiModeTemplate" value="TEMPLATE" checked /> TASLAK HAZIRLA (ADMIN GÖNDERİR)</label>
+          <label><input type="radio" name="aiMode" id="aiModeManual" value="MANUAL" /> MANUEL (ADMIN DÜZENLER)</label>
+          <label><input type="radio" name="aiMode" id="aiModeAutopilot" value="AUTOPILOT" /> OTOPİLOT (OTOMATİK GÖNDER)</label>
+        </div>
+        <span id="aiAutopilotBadge" class="ai-badge hidden">OTOPİLOT AKTİF</span>
+        <div class="template-actions">
+          <button id="btnReadCustomerMessages" type="button" disabled>Mesajları Oku</button>
+          <button id="btnAiDraft" type="button" disabled>AI Taslak Oluştur</button>
+          <button id="btnAdminAlerts" class="hidden" type="button">Yönetici Uyarıları</button>
+        </div>
+        <textarea id="aiDraftText" rows="7" readonly placeholder="AI çıktısı burada."></textarea>
+        <small id="aiAdminNote" class="hidden"></small>
+      </section>
+
+      <section class="detail-card"><h4>SMM Detayları</h4><div id="smmDetails" class="smm-grid">
+        <div><strong>SMM Sipariş ID</strong><span id="smm_order_id">-</span></div><div><strong>Tarih</strong><span id="smm_date">-</span></div><div><strong>Link</strong><a id="smm_link" href="#" target="_blank" rel="noreferrer">-</a></div><div><strong>Başlangıç</strong><span id="smm_start">-</span></div><div><strong>Miktar</strong><span id="smm_quantity">-</span></div><div><strong>Servis</strong><span id="smm_service">-</span></div><div><strong>Durum</strong><span id="smm_status">-</span></div><div><strong>Kalan</strong><span id="smm_remains">-</span></div>
+      </div><span id="smmInfoFallback" class="muted">Bir satır seçerek detayları görebilirsin.</span></section>
+
+      <section class="template-card">
+        <h4>Mesaj Önizleme</h4>
+        <textarea id="messagePreview" readonly rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
+        <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
+        <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
+        <textarea id="clipboardFallback" class="hidden" readonly></textarea>
+      </section>
+    </aside>
+
+    <footer id="logPanel" class="log-panel card">
+      <div class="log-header" id="logToggle"><h4>Loglar</h4><button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button></div>
+      <div class="log-toolbar" data-stop-toggle="1"><input id="logSearchInput" type="text" placeholder="Log ara" /><select id="logLevelFilter"><option value="">Seviye (hepsi)</option><option value="info">Bilgi</option><option value="warn">Uyarı</option><option value="error">Hata</option></select><select id="logPageFilter"><option value="">Sayfa (hepsi)</option><option value="teksekme">teksekme</option></select><select id="logSourceFilter"><option value="">İşlem/Kaynak (hepsi)</option><option value="ui">UI</option><option value="ai">AI</option><option value="mesaj_gonderici">Mesaj</option></select></div>
+      <div class="log-table-wrap"><table id="logsTable"><thead><tr><th>Seç</th><th>Zaman</th><th>Seviye</th><th>Sayfa</th><th>Kaynak</th><th>Aksiyon</th><th>Sonuç</th><th>Hata</th><th>Dosya:Satır</th></tr></thead><tbody id="logsBody"></tbody></table><div id="logsEmpty" class="empty-state">Henüz log yok.</div></div>
+      <div class="log-actions"><button id="btnCopyAllLogs">Tümünü Kopyala</button><button id="btnCopySelectedLogs">Seçileni Kopyala</button><button id="btnExportLogs">Dışa Aktar</button><button id="btnClearLogs">Temizle</button><button id="btnRetry">Yeniden Dene</button><button id="btnManual">Manuel Devret</button></div>
     </footer>
   </div>
-  <!-- JavaScript dosyaları - sırayla bağlanır -->
-  <script src="log_bootstrap.js"></script>
+
   <script type="module" src="kurallar_dom_regex_url.js"></script>
   <script type="module" src="kaziyici_hesap_com_tr.js"></script>
   <script type="module" src="kaziyici_anabayiniz_com.js"></script>
