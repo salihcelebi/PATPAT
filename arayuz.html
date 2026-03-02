@@ -1,34 +1,708 @@
+<!--
+Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleştirir; Puter AI yalnızca bu dosyada çalışır.
+-->
 <!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PATPAT Arayüz</title>
+  <title>Sipariş ve Şikayet Yönetimi</title>
+
+  <!-- (KORU) Projede var olan stil dosyası -->
   <link rel="stylesheet" href="stiller.css" />
+
+  <!-- (KORU) Kullanıcının esas aldığı tipografi -->
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- (KORU) Puter.js (AI) - Puter ile ilgili JS SADECE bu HTML içinde olacak -->
+  <script src="https://js.puter.com/v2/"></script>
+
+  <style>
+    /*
+      =====================================================================
+      PRO UI OVERRIDES (stiller.css üstüne "daha şık + daha temiz" katman)
+      - ID’ler ve dosya adları korunur.
+      - arayuz_uygulama.js ile tam uyumludur (beklediği DOM id’leri değişmez).
+      =====================================================================
+    */
+
+    /* 1) Modern tema token’ları (stiller.css değişkenleri ile uyumlu) */
+    :root{
+      /* stiller.css değişkenlerini bozmadan "daha premium" his veren ek tokenlar */
+      --pro-font: "Google Sans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+      --pro-bg-1: #0d1026;
+      --pro-bg-2: #151038;
+
+      --pro-surface: rgba(255,255,255,0.06);
+      --pro-surface-2: rgba(255,255,255,0.08);
+      --pro-border: rgba(255,255,255,0.12);
+
+      --pro-shadow-1: 0 10px 30px rgba(0,0,0,0.35);
+      --pro-shadow-2: 0 6px 18px rgba(0,0,0,0.25);
+
+      --pro-radius-xl: 22px;
+      --pro-radius-lg: 16px;
+      --pro-radius-md: 12px;
+      --pro-radius-sm: 10px;
+
+      --pro-focus: 0 0 0 4px rgba(55,178,77,0.20);
+
+      --pro-accent: var(--success-color); /* yeşil vurgu */
+      --pro-accent-2: #7c5cff;            /* mor vurgu */
+      --pro-danger: var(--danger-color);
+      --pro-warn: var(--warning-color);
+
+      --pro-muted: var(--muted-color);
+      --pro-text: var(--text-color);
+
+      --pro-chip: rgba(255,255,255,0.07);
+      --pro-chip-hover: rgba(255,255,255,0.10);
+      --pro-chip-active: rgba(55,178,77,0.18);
+    }
+
+    /* 2) Sayfa genel düzeni */
+    body{
+      font-family: var(--pro-font);
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(124,92,255,0.22), transparent 60%),
+                  radial-gradient(900px 500px at 100% 10%, rgba(55,178,77,0.18), transparent 55%),
+                  linear-gradient(180deg, var(--pro-bg-1), var(--pro-bg-2));
+      color: var(--pro-text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* 3) App kabuğu */
+    #app.grid-layout{
+      /* stiller.css grid’i korunur; sadece genel görünüm iyileştirilir */
+      gap: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    /* 4) Üst bar: daha modern ve “dashboard” görünümü */
+    #topBar.top-bar{
+      border-radius: var(--pro-radius-xl);
+      border: 1px solid var(--pro-border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+      box-shadow: var(--pro-shadow-2);
+      padding: 12px 12px;
+      overflow: hidden;
+    }
+
+    /* Üst bar içindeki “brand + quick actions” satırı */
+    .pro-brand-row{
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 6px 10px 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      margin-bottom: 10px;
+    }
+
+    .pro-brand{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 240px;
+    }
+    .pro-logo{
+      width: 40px; height: 40px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      background: radial-gradient(circle at 30% 30%, rgba(124,92,255,0.65), rgba(55,178,77,0.35));
+      box-shadow: 0 12px 22px rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.14);
+      user-select:none;
+      font-size: 18px;
+    }
+    .pro-title{
+      display:flex; flex-direction:column; gap:2px;
+      line-height:1.1;
+    }
+    .pro-title strong{
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+    .pro-title span{
+      font-size: 12px;
+      color: var(--pro-muted);
+    }
+
+    .pro-quick{
+      display:flex; align-items:center; gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pro-btn{
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--pro-text);
+      cursor: pointer;
+      display:flex; align-items:center; gap: 8px;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .pro-btn:hover{
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.18);
+      transform: translateY(-1px);
+    }
+    .pro-btn:active{ transform: translateY(0px); }
+    .pro-btn:focus{ outline:none; box-shadow: var(--pro-focus); }
+
+    .pro-btn.primary{
+      background: linear-gradient(180deg, rgba(55,178,77,0.28), rgba(55,178,77,0.16));
+      border-color: rgba(55,178,77,0.35);
+    }
+    .pro-btn.danger{
+      background: linear-gradient(180deg, rgba(207,47,56,0.28), rgba(207,47,56,0.14));
+      border-color: rgba(207,47,56,0.35);
+    }
+
+    /* 5) Üst bar kontrol alanları (bar-item) */
+    .top-bar .bar-item{
+      margin-right: 10px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 8px 10px;
+      gap: 8px;
+    }
+    .top-bar label{
+      font-weight: 700;
+      font-size: 12px;
+      color: rgba(255,255,255,0.86);
+      letter-spacing: 0.2px;
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+
+    /* stiller.css input/select/button stillerini profesyonelleştir */
+    .top-bar select,
+    .top-bar input[type="text"],
+    .top-bar input[type="number"],
+    .top-bar button{
+      height: 34px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.20);
+      color: var(--pro-text);
+      padding: 0 10px;
+      font-size: 13px;
+      transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .top-bar input[type="checkbox"]{
+      width: 18px; height: 18px;
+      accent-color: var(--pro-accent);
+      cursor:pointer;
+    }
+    .top-bar select:focus,
+    .top-bar input:focus{
+      outline:none;
+      box-shadow: var(--pro-focus);
+      border-color: rgba(55,178,77,0.35);
+      background: rgba(0,0,0,0.28);
+    }
+
+    .top-bar .actions{
+      background: transparent;
+      border: none;
+      padding: 0;
+      gap: 8px;
+    }
+    .top-bar .actions button{
+      cursor:pointer;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+    .top-bar .actions #btnStart{
+      background: linear-gradient(180deg, rgba(55,178,77,0.30), rgba(55,178,77,0.16));
+      border-color: rgba(55,178,77,0.36);
+    }
+    .top-bar .actions #btnStop{
+      background: linear-gradient(180deg, rgba(207,47,56,0.26), rgba(207,47,56,0.12));
+      border-color: rgba(207,47,56,0.33);
+    }
+
+    /* 6) Ana alan: kart hissi + net ayraçlar */
+    #mainArea.main-area{
+      border-radius: var(--pro-radius-xl);
+      overflow: hidden;
+      border: 1px solid var(--pro-border);
+      box-shadow: var(--pro-shadow-2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+    }
+
+    /* Sol tablo bölümü */
+    .table-section{
+      background: transparent;
+      padding: 14px;
+      border-right: 1px solid rgba(255,255,255,0.10);
+    }
+    .table-header{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .table-header h3{
+      margin:0;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+    .pro-table-sub{
+      font-size: 12px;
+      color: var(--pro-muted);
+    }
+
+    .table-wrap{
+      border-radius: var(--pro-radius-lg);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
+      overflow: hidden;
+    }
+
+    /* Tablo */
+    table{
+      min-width: 720px;
+    }
+    thead th{
+      background: rgba(0,0,0,0.28);
+      backdrop-filter: blur(6px);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    tbody td{
+      padding: 10px 10px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.92);
+      max-width: 280px;
+    }
+    tbody tr{
+      transition: background .12s ease, transform .12s ease;
+      cursor: pointer;
+    }
+    tbody tr:hover{
+      background: rgba(255,255,255,0.05);
+    }
+    tbody tr.selected{
+      background: rgba(55,178,77,0.14);
+    }
+    tbody td a{
+      color: #8be6a0;
+      text-decoration: none;
+    }
+    tbody td a:hover{
+      text-decoration: underline;
+    }
+
+    /* Status chip (JS ile otomatik sarılacak) */
+    .status-chip{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+    .dot{
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+    }
+    .status-chip.ok{ border-color: rgba(55,178,77,0.35); background: rgba(55,178,77,0.14); }
+    .status-chip.ok .dot{ background: rgba(55,178,77,0.95); box-shadow: 0 0 0 3px rgba(55,178,77,0.15); }
+    .status-chip.warn{ border-color: rgba(224,168,0,0.35); background: rgba(224,168,0,0.12); }
+    .status-chip.warn .dot{ background: rgba(224,168,0,0.95); box-shadow: 0 0 0 3px rgba(224,168,0,0.15); }
+    .status-chip.bad{ border-color: rgba(207,47,56,0.35); background: rgba(207,47,56,0.12); }
+    .status-chip.bad .dot{ background: rgba(207,47,56,0.95); box-shadow: 0 0 0 3px rgba(207,47,56,0.15); }
+
+    /* 7) Sağ panel: başlık + sekmeler + içerik */
+    .side-panel{
+      background: transparent;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .pro-side-header{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 12px;
+      border-radius: var(--pro-radius-lg);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
+    }
+    .pro-selected{
+      display:flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .pro-selected .line1{
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pro-selected .line2{
+      font-size: 12px;
+      color: var(--pro-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pro-side-tabs{
+      display:flex;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .pro-tab{
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.06);
+      color: var(--pro-text);
+      padding: 8px 10px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight: 800;
+      font-size: 12px;
+      transition: background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .pro-tab:hover{ background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.16); }
+    .pro-tab.active{ background: rgba(55,178,77,0.16); border-color: rgba(55,178,77,0.30); }
+
+    .pro-panel{
+      display:none;
+    }
+    .pro-panel.active{
+      display:block;
+    }
+
+    /* Kartlar */
+    .detail-card,
+    .template-card{
+      background: rgba(0,0,0,0.18);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--pro-radius-lg);
+      padding: 12px;
+      box-shadow: none;
+    }
+    .detail-card h4,
+    .template-card h4{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+      margin: 0 0 10px 0;
+    }
+
+    /* SMM detay grid */
+    .pro-kv{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .pro-kv .row{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+    .pro-kv .k{
+      color: rgba(255,255,255,0.78);
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .pro-kv .v{
+      color: rgba(255,255,255,0.94);
+      font-weight: 700;
+      font-size: 12px;
+      max-width: 55%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+    .pro-kv a{ color:#8be6a0; text-decoration:none; }
+    .pro-kv a:hover{ text-decoration: underline; }
+
+    /* Mesaj önizleme */
+    .template-card textarea{
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--pro-radius-md);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      min-height: 160px;
+      outline: none;
+      transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    .template-card textarea:focus{
+      box-shadow: var(--pro-focus);
+      border-color: rgba(55,178,77,0.35);
+    }
+
+    .template-actions{
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .template-actions select,
+    .template-actions button{
+      border-radius: 12px;
+      height: 36px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .template-actions button:hover{
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .template-actions button:disabled{ opacity: .55; transform:none; }
+
+    /* Policy warning daha net */
+    .policy-warning{
+      margin-top: 8px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(207,47,56,0.35);
+      background: rgba(207,47,56,0.12);
+      color: rgba(255,255,255,0.92);
+    }
+
+    /* 8) Log panel: kapanabilir + “gerçek kapanma” */
+    #logPanel.log-panel{
+      border-radius: var(--pro-radius-xl);
+      border: 1px solid var(--pro-border);
+      box-shadow: var(--pro-shadow-2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      max-height: 28vh; /* daha rahat */
+      margin-top: 2px;
+    }
+    #logPanel.collapsed{
+      max-height: 52px !important;
+    }
+    #logPanel.collapsed .log-table-wrap,
+    #logPanel.collapsed .log-actions{
+      display:none !important;
+    }
+
+    .log-header{
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+    }
+    .log-header h4{
+      font-size: 13px;
+      letter-spacing: 0.2px;
+    }
+
+    /* Log tablosu */
+    .log-table-wrap{
+      background: rgba(0,0,0,0.18);
+      border-top: 1px solid rgba(255,255,255,0.10);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .log-table-wrap thead th{
+      background: rgba(0,0,0,0.28);
+      padding: 8px 8px;
+    }
+    .log-actions button{
+      border-radius: 12px;
+      height: 36px;
+      font-weight: 900;
+    }
+
+    /* 9) Toast bildirimleri */
+    .toast-stack{
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9999;
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast{
+      pointer-events: none;
+      min-width: 280px;
+      max-width: 420px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--pro-shadow-1);
+      padding: 12px 12px;
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      animation: toastIn .18s ease-out;
+    }
+    @keyframes toastIn{
+      from{ transform: translateY(-6px); opacity: 0; }
+      to{ transform: translateY(0px); opacity: 1; }
+    }
+    .toast .ico{
+      width: 26px; height: 26px;
+      border-radius: 10px;
+      display:grid; place-items:center;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      flex: 0 0 auto;
+    }
+    .toast .txt{
+      display:flex; flex-direction: column; gap: 2px;
+      min-width: 0;
+    }
+    .toast .txt .t{
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+    }
+    .toast .txt .d{
+      font-size: 12px;
+      color: rgba(255,255,255,0.78);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .toast.ok{ border-color: rgba(55,178,77,0.28); }
+    .toast.warn{ border-color: rgba(224,168,0,0.28); }
+    .toast.bad{ border-color: rgba(207,47,56,0.28); }
+
+    /* 10) Mobil uyum: mevcut media query korunur + küçük iyileştirmeler */
+    @media (max-width: 900px){
+      #app.grid-layout{ padding: 8px; }
+      .top-bar .bar-item{ width: 100%; justify-content: space-between; }
+      .top-bar .actions{ width: 100%; display:flex; flex-wrap: wrap; justify-content: flex-start; }
+      .top-bar .actions button{ flex: 1; }
+      table{ min-width: 820px; } /* mobilde yatay kaydırma zaten var */
+    }
+  </style>
 </head>
+
 <body data-page="teksekme">
+  <!-- Toast alanı -->
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Uygulama kabuğu: üst bar, ana tablo ve sağ panel, alt log paneli -->
   <div id="app" class="grid-layout">
-    <header id="topBar" class="top-bar card">
-      <div class="top-row top-row--filters">
-        <div class="bar-item"><label for="modeSelect">Mod</label><select id="modeSelect"><option value="analysis">Analiz</option><option value="complaint">Şikayet</option></select></div>
-        <div class="bar-item bar-item--status">
-          <label>Durum</label>
-          <div id="statusPillsContainer" class="status-pills">
-            <button type="button" class="status-pill-btn" data-value="pending">Beklemede</button>
-            <button type="button" class="status-pill-btn" data-value="processing">İşleniyor</button>
-            <button type="button" class="status-pill-btn" data-value="completed">Tamamlandı</button>
-            <button type="button" class="status-pill-btn" data-value="cancelled">İptal</button>
-            <button type="button" class="status-pill-btn active" data-value="returnprocess">İade</button>
-            <button type="button" class="status-pill-btn active" data-value="problematic">Sorunlu</button>
+
+    <!-- Üst bar: filtreler ve mod seçimleri -->
+    <header id="topBar" class="top-bar">
+
+      <!-- BRAND + QUICK ACTIONS (UI iyileştirme; arayuz_uygulama.js’e dokunmaz) -->
+      <div class="pro-brand-row">
+        <div class="pro-brand">
+          <div class="pro-logo" title="PATPAT">🧠</div>
+          <div class="pro-title">
+            <strong>PATPAT • Sipariş & Şikayet Yönetimi</strong>
+            <span>Tek sekme • SMM eşleştirme • Hazır yanıt • Log merkezi</span>
           </div>
-          <select id="statusSelect" multiple class="hidden"><option value="pending">pending</option><option value="processing">processing</option><option value="completed">completed</option><option value="cancelled">cancelled</option><option value="returnprocess" selected>returnprocess</option><option value="problematic" selected>problematic</option></select>
         </div>
-        <div class="bar-item"><label for="searchInput">Arama</label><input id="searchInput" type="text" placeholder="Sipariş / Müşteri / SMM" /></div>
-        <div class="bar-item"><label for="pageLimitInput">Sayfa limiti</label><input id="pageLimitInput" type="number" min="1" max="999" value="1" /></div>
+
+        <div class="pro-quick">
+          <button class="pro-btn" id="btnToggleSidePanel" type="button" title="Sağ paneli aç/kapat">🧩 Panel</button>
+          <button class="pro-btn" id="btnToggleLogPanel" type="button" title="Log panelini kapat/aç">📜 Log</button>
+          <button class="pro-btn" id="btnQuickCopy" type="button" title="Mesaj önizlemeyi kopyala">📋 Kopyala</button>
+          <button class="pro-btn" id="btnOpenMessagePage" type="button" title="Mesaj sayfasını aç (https://hesap.com.tr/u/{kullaniciadi})">🔗 Mesaj</button>
+          <button class="pro-btn primary" id="btnFocusSelected" type="button" title="Seçili satıra git">🎯 Seçili</button>
+          <button class="pro-btn" id="btnReloadUi" type="button" title="Sayfayı yenile">🔄 Yenile</button>
+        </div>
       </div>
-      <div class="top-row top-row--actions">
-        <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
-        <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Simülasyon</label><input id="dryRunToggle" type="checkbox" checked /></div>
+
+      <!-- (KORU) Mevcut bar-item’lar: arayuz_uygulama.js bu ID’lere bağlı -->
+      <div class="bar-item">
+        <label for="modeSelect">Mod:</label>
+        <select id="modeSelect">
+          <option value="analysis">Analiz Modu</option>
+          <option value="complaint">Şikayet Modu</option>
+        </select>
+      </div>
+
+      <div class="bar-item">
+        <label for="statusSelect">Durum:</label>
+        <select id="statusSelect" multiple>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="returnprocess">Returnprocess</option>
+          <option value="problematic">Problematic</option>
+        </select>
+      </div>
+
+      <div class="bar-item">
+        <label for="searchInput">Arama:</label>
+        <input id="searchInput" type="text" placeholder="Sipariş ID / Müşteri / SMM ID" />
+      </div>
+
+      <div class="bar-item">
+        <label for="pageLimitInput">Sayfa Limiti:</label>
+        <input id="pageLimitInput" type="number" min="0" step="1" value="0" />
+      </div>
+
+      <div class="bar-item">
+        <label for="autoSendToggle">Otomatik Gönder:</label>
+        <input id="autoSendToggle" type="checkbox" />
+      </div>
+
+      <div class="bar-item">
+        <label for="dryRunToggle">Dry Run:</label>
+        <input id="dryRunToggle" type="checkbox" checked />
+      </div>
+
+      <div class="bar-item actions">
+        <button id="btnStart" type="button">Taramayı Başlat</button>
+        <button id="btnStop" type="button" disabled>Durdur</button>
+        <button id="btnExportCsv" type="button">CSV</button>
+        <button id="btnExportJson" type="button">JSONL</button>
+      </div>
+      <div class="scan-cta-row">
+        <button id="btnStartHero" type="button">🔎 TARAMAYI BAŞLAT</button>
+        <span class="muted">Sablon akışına uygun hızlı başlatma butonu</span>
+      </div>
+      <div class="scan-cta-row">
+        <button id="btnStartHero" type="button">🔎 TARAMAYI BAŞLAT</button>
+        <span class="muted">Sablon akışına uygun hızlı başlatma butonu</span>
       </div>
       <div class="scan-cta-row">
         <button id="btnStartHero" type="button">🔎 TARAMAYI BAŞLAT</button>
@@ -48,36 +722,86 @@
       </section>
     </header>
 
-    <main id="mainArea" class="main-area card">
+    <!-- Ana içerik bölgesi -->
+    <main id="mainArea" class="main-area">
+
+      <!-- Sol: Tablo konteyneri -->
       <section class="table-section">
-        <div class="tabs-bar g-tabs"><button class="tab-btn active" id="tabTable" type="button">Tablo</button><button class="tab-btn" id="tabLogs" type="button">Loglar</button><div class="tabs-spacer"></div></div>
-        <div class="table-header"><h3 id="tableTitle">Toplam 0 satır.</h3></div>
-        <div class="table-wrap"><table id="ordersTable"><thead><tr><th>🆔 Sipariş ID</th><th>🏷️ Durum</th><th>🧷 İlan URL</th><th>👤 Müşteri</th><th>🔢 SMM ID</th><th>💬 Mesaj Yolu</th></tr></thead><tbody id="ordersBody"></tbody></table><div id="ordersEmpty" class="empty-state">Henüz veri yok.</div></div>
-      </section>
-    </main>
-
-    <aside id="sidePanel" class="side-panel card">
-      <section class="ai-mode-card">
-        <!-- SCOD: BU GEREKSİNİM UYGULANDI - AI modu ve kontroller tek kartta toplandı. -->
-        <h4>AI Modu</h4>
-        <div class="ai-mode-options">
-          <label><input type="radio" name="aiMode" id="aiModeTemplate" value="TEMPLATE" checked /> TASLAK HAZIRLA (ADMIN GÖNDERİR)</label>
-          <label><input type="radio" name="aiMode" id="aiModeManual" value="MANUAL" /> MANUEL (ADMIN DÜZENLER)</label>
-          <label><input type="radio" name="aiMode" id="aiModeAutopilot" value="AUTOPILOT" /> OTOPİLOT (OTOMATİK GÖNDER)</label>
+        <div class="table-header">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <h3 id="tableTitle">Toplam 0 satır.</h3>
+            <div class="pro-table-sub" id="tableHint">Satıra tıkla → sağ panelde SMM detay + mesaj önizleme açılır.</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="pro-table-sub" id="selectedHint">Seçili: yok</span>
+          </div>
         </div>
-        <span id="aiAutopilotBadge" class="ai-badge hidden">OTOPİLOT AKTİF</span>
-        <div class="template-actions">
-          <button id="btnReadCustomerMessages" type="button" disabled>Mesajları Oku</button>
-          <button id="btnAiDraft" type="button" disabled>AI Taslak Oluştur</button>
-          <button id="btnAdminAlerts" class="hidden" type="button">Yönetici Uyarıları</button>
+
+        <div class="table-wrap" role="region" aria-label="Siparişler tablosu">
+          <table id="ordersTable">
+            <thead>
+              <tr>
+                <th>🆔 Sipariş ID</th>
+                <th>🏷️ Durum</th>
+                <th>🧷 İlan URL</th>
+                <th>👤 Müşteri</th>
+                <th>🔢 SMM ID</th>
+                <th>💬 Mesaj Yolu</th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody">
+              <!-- Dinamik olarak satırlar eklenecek -->
+            </tbody>
+          </table>
+          <div id="ordersEmpty" class="empty-state">Henüz veri yok.</div>
         </div>
-        <textarea id="aiDraftText" rows="7" readonly placeholder="AI çıktısı burada."></textarea>
-        <small id="aiAdminNote" class="hidden"></small>
       </section>
 
-      <section class="detail-card"><h4>SMM Detayları</h4><div id="smmDetails" class="smm-grid">
-        <div><strong>SMM Sipariş ID</strong><span id="smm_order_id">-</span></div><div><strong>Tarih</strong><span id="smm_date">-</span></div><div><strong>Link</strong><a id="smm_link" href="#" target="_blank" rel="noreferrer">-</a></div><div><strong>Başlangıç</strong><span id="smm_start">-</span></div><div><strong>Miktar</strong><span id="smm_quantity">-</span></div><div><strong>Servis</strong><span id="smm_service">-</span></div><div><strong>Durum</strong><span id="smm_status">-</span></div><div><strong>Kalan</strong><span id="smm_remains">-</span></div>
-      </div><span id="smmInfoFallback" class="muted">Bir satır seçerek detayları görebilirsin.</span></section>
+      <!-- Sağ: Panel (seçili satır detay + mesaj üretici + AI) -->
+      <aside id="sidePanel" class="side-panel">
+
+        <!-- Sağ panel üst başlık (seçili bilgi + sekmeler) -->
+        <div class="pro-side-header">
+          <div class="pro-selected">
+            <div class="line1" id="selectedTitle">📍 Seçili: yok</div>
+            <div class="line2" id="selectedSub">Satıra tıklayınca burada müşteri + sipariş bilgisi görünür.</div>
+          </div>
+
+          <div class="pro-side-tabs" aria-label="Sağ panel sekmeleri">
+            <button type="button" class="pro-tab active" data-protab="details">Detay</button>
+            <button type="button" class="pro-tab" data-protab="message">Mesaj</button>
+            <button type="button" class="pro-tab" data-protab="ai">AI</button>
+          </div>
+        </div>
+
+        <!-- PANEL: DETAY -->
+        <div class="pro-panel active" data-propanel="details">
+          <div class="detail-card">
+            <h4>
+              <span>📦 SMM Detay</span>
+              <span style="font-size:12px; color: var(--pro-muted); font-weight:800;">Eşleşen sipariş bilgisi</span>
+            </h4>
+
+            <div id="smmDetails" class="pro-kv">
+              <div class="row"><span class="k">SMM Sipariş ID</span> <span class="v" id="smm_order_id">-</span></div>
+              <div class="row"><span class="k">Tarih</span> <span class="v" id="smm_date">-</span></div>
+              <div class="row"><span class="k">Link</span> <span class="v"><a id="smm_link" href="#" target="_blank" rel="noreferrer">-</a></span></div>
+              <div class="row"><span class="k">Başlangıç</span> <span class="v" id="smm_start">-</span></div>
+              <div class="row"><span class="k">Miktar</span> <span class="v" id="smm_quantity">-</span></div>
+              <div class="row"><span class="k">Servis</span> <span class="v" id="smm_service">-</span></div>
+              <div class="row"><span class="k">Durum</span> <span class="v" id="smm_status">-</span></div>
+              <div class="row"><span class="k">Kalan</span> <span class="v" id="smm_remains">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: MESAJ -->
+        <div class="pro-panel" data-propanel="message">
+          <div class="template-card">
+            <h4>
+              <span>💬 Mesaj Önizleme</span>
+              <span style="font-size:12px; color: var(--pro-muted); font-weight:800;">Şablon + kontrol</span>
+            </h4>
 
       <section class="template-card">
         <h4>Mesaj Önizleme</h4>
@@ -93,14 +817,648 @@
       </section>
     </aside>
 
-    <footer id="logPanel" class="log-panel card">
-      <div class="log-header" id="logToggle"><h4>Loglar</h4><button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button></div>
-      <div class="log-toolbar" data-stop-toggle="1"><input id="logSearchInput" type="text" placeholder="Log ara" /><select id="logLevelFilter"><option value="">Seviye (hepsi)</option><option value="info">Bilgi</option><option value="warn">Uyarı</option><option value="error">Hata</option></select><select id="logPageFilter"><option value="">Sayfa (hepsi)</option><option value="teksekme">teksekme</option></select><select id="logSourceFilter"><option value="">İşlem/Kaynak (hepsi)</option><option value="ui">UI</option><option value="ai">AI</option><option value="mesaj_gonderici">Mesaj</option></select></div>
-      <div class="log-table-wrap"><table id="logsTable"><thead><tr><th>Seç</th><th>Zaman</th><th>Seviye</th><th>Sayfa</th><th>Kaynak</th><th>Aksiyon</th><th>Sonuç</th><th>Hata</th><th>Dosya:Satır</th></tr></thead><tbody id="logsBody"></tbody></table><div id="logsEmpty" class="empty-state">Henüz log yok.</div></div>
-      <div class="log-actions"><button id="btnCopyAllLogs">Tümünü Kopyala</button><button id="btnCopySelectedLogs">Seçileni Kopyala</button><button id="btnExportLogs">Dışa Aktar</button><button id="btnClearLogs">Temizle</button><button id="btnRetry">Yeniden Dene</button><button id="btnManual">Manuel Devret</button></div>
+        <!-- EK: log panel toggle butonu (ID korunmaz; arayuz_uygulama.js’e dokunmaz) -->
+        <button class="pro-btn" type="button" id="btnToggleLogPanel2" title="Log panelini kapat/aç">📜 Kapat/Aç</button>
+      </div>
+
+      <div class="log-table-wrap">
+        <table id="logsTable">
+          <thead>
+            <tr>
+              <th>Zaman</th>
+              <th>Seviye</th>
+              <th>Modül</th>
+              <th>Aksiyon</th>
+              <th>Sonuç</th>
+              <th>Hata</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
+        </table>
+        <div id="logsEmpty" class="empty-state">Henüz log yok.</div>
+      </div>
+
+      <div class="log-actions">
+        <button id="btnRetry" type="button">Yeniden Dene</button>
+        <button id="btnManual" type="button">Manuel Devret</button>
+      </div>
     </footer>
   </div>
 
+  <!--
+    =====================================================================
+    INLINE JS (UI+Puter.js) — UYGULAMA MANTIĞINI arayuz_uygulama.js’ten ALMAZ
+    - Sadece: görünüm iyileştirme, panel aç/kapat, toast, Puter AI yardımcıları.
+    - arayuz_uygulama.js’in beklediği ID’lere dokunmaz.
+    =====================================================================
+  -->
+  <script type="module">
+    /*
+      Kısa açıklama (~15 kelime): UI iyileştirmeleri; tablo satırlarını zenginleştirir; panelleri yönetir; toast gösterir.
+    */
+
+    // ---- Safe helpers ----
+    const $ = (id) => document.getElementById(id);
+    const qs = (sel, root = document) => root.querySelector(sel);
+    const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    function safeText(el, fallback = '') {
+      try { return (el?.textContent ?? fallback).trim(); } catch { return fallback; }
+    }
+
+    // ---- Toast system ----
+    const toastStack = $('toastStack');
+    function toast(kind, title, desc, ms = 2600) {
+      if (!toastStack) return;
+      const t = document.createElement('div');
+      t.className = `toast ${kind || ''}`.trim();
+      const icon = kind === 'ok' ? '✅' : kind === 'warn' ? '⚠️' : kind === 'bad' ? '⛔' : 'ℹ️';
+
+      t.innerHTML = `
+        <div class="ico">${icon}</div>
+        <div class="txt">
+          <div class="t"></div>
+          <div class="d"></div>
+        </div>
+      `;
+      const tt = qs('.t', t);
+      const dd = qs('.d', t);
+      if (tt) tt.textContent = title || 'Bildirim';
+      if (dd) dd.textContent = desc || '';
+
+      toastStack.appendChild(t);
+      setTimeout(() => {
+        try { t.style.opacity = '0'; t.style.transform = 'translateY(-6px)'; } catch {}
+        setTimeout(() => { try { t.remove(); } catch {} }, 180);
+      }, Math.max(1200, ms));
+    }
+
+    // ---- Panel toggles (side + log) ----
+    const sidePanel = $('sidePanel');
+    const logPanel = $('logPanel');
+
+    function setCollapsed(key, el, collapsed) {
+      try {
+        if (!el) return;
+        el.classList.toggle('collapsed', !!collapsed);
+        localStorage.setItem(key, collapsed ? '1' : '0');
+      } catch {}
+    }
+    function getCollapsed(key) {
+      try { return localStorage.getItem(key) === '1'; } catch { return false; }
+    }
+
+    function initPanelToggles() {
+      const btnSide = $('btnToggleSidePanel');
+      const btnLog1 = $('btnToggleLogPanel');
+      const btnLog2 = $('btnToggleLogPanel2');
+
+      // side panel collapse: sadece CSS ile gizlemek yerine width küçültme
+      const sideKey = 'patpat_side_collapsed';
+      const logKey = 'patpat_log_collapsed';
+
+      // Başlangıç değerleri
+      const sideCollapsed = getCollapsed(sideKey);
+      const logCollapsed = getCollapsed(logKey);
+
+      if (sidePanel) sidePanel.classList.toggle('collapsed', sideCollapsed);
+      if (logPanel) logPanel.classList.toggle('collapsed', logCollapsed);
+
+      // Side panel CSS (inline): collapsed halinde daralt
+      const style = document.createElement('style');
+      style.textContent = `
+        /* Kısa açıklama (~15 kelime): Sağ paneli gerçekten daraltır; mobilde tam kapatmaz, kontrollü küçültür. */
+        #sidePanel.collapsed{ width: 56px !important; min-width: 56px !important; padding: 10px !important; overflow: hidden !important; }
+        #sidePanel.collapsed .pro-side-header,
+        #sidePanel.collapsed .pro-panel{ display:none !important; }
+        #sidePanel.collapsed::before{
+          content:"🧩";
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          width:100%;
+          height:100%;
+          color: rgba(255,255,255,0.9);
+          font-size: 18px;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(0,0,0,0.18);
+        }
+      `;
+      document.head.appendChild(style);
+
+      if (btnSide) {
+        btnSide.addEventListener('click', () => {
+          const next = !(sidePanel?.classList.contains('collapsed'));
+          setCollapsed(sideKey, sidePanel, next);
+          toast('ok', 'Panel', next ? 'Sağ panel kapatıldı.' : 'Sağ panel açıldı.');
+        });
+      }
+
+      function toggleLog() {
+        const next = !(logPanel?.classList.contains('collapsed'));
+        setCollapsed(logKey, logPanel, next);
+        toast('ok', 'Log', next ? 'Log paneli kapatıldı.' : 'Log paneli açıldı.');
+      }
+      if (btnLog1) btnLog1.addEventListener('click', toggleLog);
+      if (btnLog2) btnLog2.addEventListener('click', toggleLog);
+    }
+
+    // ---- Right panel tabs ----
+    function initRightTabs() {
+      const tabs = qsa('.pro-tab');
+      const panels = qsa('.pro-panel');
+
+      function activate(name) {
+        tabs.forEach(b => b.classList.toggle('active', b.dataset.protab === name));
+        panels.forEach(p => p.classList.toggle('active', p.dataset.propanel === name));
+      }
+
+      tabs.forEach(btn => {
+        btn.addEventListener('click', () => activate(btn.dataset.protab));
+      });
+    }
+
+    // ---- Selection helpers (müşteri adına tıklayınca sağ paneli aç + seçili bilgiyi göster) ----
+    function getSelectedRow() {
+      const tbody = $('ordersBody');
+      if (!tbody) return null;
+      return qs('tr.selected', tbody);
+    }
+
+    function updateSelectedHeaderFromRow(row) {
+      const title = $('selectedTitle');
+      const sub = $('selectedSub');
+      const hint = $('selectedHint');
+
+      if (!row) {
+        if (title) title.textContent = '📍 Seçili: yok';
+        if (sub) sub.textContent = 'Satıra tıklayınca burada müşteri + sipariş bilgisi görünür.';
+        if (hint) hint.textContent = 'Seçili: yok';
+        return;
+      }
+
+      const tds = Array.from(row.children || []);
+      const orderId = safeText(tds[0], '');
+      const status = safeText(tds[1], '');
+      const buyer = safeText(tds[3], '');
+      if (title) title.textContent = `📍 #${orderId || '-'} • ${buyer || 'müşteri yok'}`;
+      if (sub) sub.textContent = `Durum: ${status || '-'} • Şablon: ${safeText($('templateSelect'), '-')}`;
+      if (hint) hint.textContent = `Seçili: #${orderId || '-'}`;
+    }
+
+    function openSidePanelIfCollapsed() {
+      const btn = $('btnToggleSidePanel');
+      if (!sidePanel) return;
+      if (sidePanel.classList.contains('collapsed')) {
+        try { btn?.click(); } catch {}
+      }
+    }
+
+    // ---- Status chip enhancement (tbody değişince otomatik uygula) ----
+    function enhanceTableRows() {
+      const tbody = $('ordersBody');
+      if (!tbody) return;
+
+      function classifyStatus(s) {
+        const x = String(s || '').toLowerCase();
+        if (x.includes('completed')) return 'ok';
+        if (x.includes('processing') || x.includes('pending') || x.includes('inprogress')) return 'warn';
+        if (x.includes('cancel') || x.includes('return') || x.includes('problem') || x.includes('partial')) return 'bad';
+        return '';
+      }
+
+      function enhanceRow(tr) {
+        try {
+          const tds = Array.from(tr.children || []);
+          if (tds.length < 2) return;
+
+          // Durum hücresini chip’e çevir (tekrar çalışırsa çift sarmasın)
+          const tdStatus = tds[1];
+          const raw = safeText(tdStatus, '');
+          if (!raw) return;
+
+          // zaten chip var mı?
+          if (qs('.status-chip', tdStatus)) return;
+
+          const cls = classifyStatus(raw);
+          tdStatus.textContent = '';
+          const chip = document.createElement('span');
+          chip.className = `status-chip ${cls}`.trim();
+          chip.innerHTML = `<span class="dot"></span><span>${raw}</span>`;
+          tdStatus.appendChild(chip);
+
+          // Müşteri hücresini “tıklanabilir” daha belirgin yap
+          const tdBuyer = tds[3];
+          if (tdBuyer && !tdBuyer.dataset.enhanced) {
+            tdBuyer.dataset.enhanced = '1';
+            tdBuyer.style.fontWeight = '900';
+            tdBuyer.style.cursor = 'pointer';
+            tdBuyer.title = 'Müşteri adına tıkla → Sağ panel + Mesaj sayfası butonu';
+          }
+        } catch {}
+      }
+
+      // mevcut satırlar
+      Array.from(tbody.children).forEach(enhanceRow);
+
+      // değişiklik izleyici
+      const mo = new MutationObserver(() => {
+        Array.from(tbody.children).forEach(enhanceRow);
+        updateSelectedHeaderFromRow(getSelectedRow());
+      });
+      mo.observe(tbody, { childList: true, subtree: false });
+    }
+
+    // ---- Quick actions (kopyala, mesaj sayfası aç, seçiliye git) ----
+    async function safeCopy(text) {
+      try {
+        if (!text) return false;
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function getBuyerUsernameFromSelected() {
+      const row = getSelectedRow();
+      if (!row) return '';
+      const tds = Array.from(row.children || []);
+      return safeText(tds[3], '');
+    }
+
+    function openMessagePageForBuyer(buyerUsername) {
+      const u = String(buyerUsername || '').trim();
+      if (!u) return false;
+      const url = `https://hesap.com.tr/u/${encodeURIComponent(u)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+
+    function initQuickActions() {
+      const btnReloadUi = $('btnReloadUi');
+      const btnQuickCopy = $('btnQuickCopy');
+      const btnOpen1 = $('btnOpenMessagePage');
+      const btnOpen2 = $('btnOpenMessagePage2');
+      const btnCopy2 = $('btnCopyAndToast');
+      const btnFocus = $('btnFocusSelected');
+
+      if (btnReloadUi) {
+        btnReloadUi.addEventListener('click', () => location.reload());
+      }
+
+      const doCopyPreview = async () => {
+        const txt = safeText($('messagePreview'), '');
+        if (!txt) {
+          toast('warn', 'Kopyala', 'Kopyalanacak mesaj yok. Önce bir satır seçin.');
+          return;
+        }
+        const ok = await safeCopy(txt);
+        toast(ok ? 'ok' : 'bad', 'Kopyala', ok ? 'Mesaj panoya kopyalandı.' : 'Kopyalama başarısız (izin gerekli olabilir).');
+      };
+
+      if (btnQuickCopy) btnQuickCopy.addEventListener('click', doCopyPreview);
+      if (btnCopy2) btnCopy2.addEventListener('click', doCopyPreview);
+
+      const doOpenMessage = async () => {
+        const buyer = getBuyerUsernameFromSelected();
+        if (!buyer) {
+          toast('warn', 'Mesaj', 'Müşteri kullanıcı adı bulunamadı. Önce bir satır seçin.');
+          return;
+        }
+
+        // önce mesajı da kopyala (kullanışlı akış)
+        const txt = safeText($('messagePreview'), '');
+        if (txt) { await safeCopy(txt); }
+
+        const ok = openMessagePageForBuyer(buyer);
+        toast(ok ? 'ok' : 'bad', 'Mesaj Sayfası', ok ? `Açıldı: ${buyer}` : 'Açılamadı.');
+      };
+
+      if (btnOpen1) btnOpen1.addEventListener('click', doOpenMessage);
+      if (btnOpen2) btnOpen2.addEventListener('click', doOpenMessage);
+
+      if (btnFocus) {
+        btnFocus.addEventListener('click', () => {
+          const row = getSelectedRow();
+          if (!row) {
+            toast('warn', 'Seçili', 'Seçili satır yok.');
+            return;
+          }
+          try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+          toast('ok', 'Seçili', 'Seçili satıra gidildi.');
+        });
+      }
+    }
+
+    // ---- “Müşteri adına tıklayınca” davranışı: sağ paneli aç + mesaj sekmesine geç (isteğe bağlı) ----
+    function initBuyerClickBehavior() {
+      const tbody = $('ordersBody');
+      if (!tbody) return;
+
+      tbody.addEventListener('click', (ev) => {
+        const td = ev.target?.closest?.('td');
+        const tr = ev.target?.closest?.('tr');
+        if (!td || !tr) return;
+
+        // Müşteri kolonu: 4. sütun (index 3)
+        const isBuyerCell = (td.cellIndex === 3);
+        if (isBuyerCell) {
+          openSidePanelIfCollapsed();
+          // Mesaj sekmesine al (müşteri click = mesaj odak)
+          const msgTab = qs('.pro-tab[data-protab="message"]');
+          msgTab?.click();
+        }
+
+        // Seçili başlığı güncelle (arayuz_uygulama.js zaten selected class’ı basıyor)
+        setTimeout(() => updateSelectedHeaderFromRow(getSelectedRow()), 0);
+      }, true);
+    }
+
+    // ---- Send button override (PROJE KURALI): Gönder → https://hesap.com.tr/u/{kullaniciadi}
+    // Not: arayuz_uygulama.js btnSendMessage’e handler bağlıyor; burada capture ile akışı kontrol ediyoruz.
+    function initSendOverride() {
+      const btnSend = $('btnSendMessage');
+      if (!btnSend) return;
+
+      btnSend.addEventListener('click', async (ev) => {
+        // Capture / early interception
+        try {
+          const buyer = getBuyerUsernameFromSelected();
+          const msg = safeText($('messagePreview'), '');
+
+          if (!buyer) {
+            toast('warn', 'Gönder', 'Müşteri bulunamadı. Önce bir satır seçin.');
+            return;
+          }
+          if (!msg) {
+            toast('warn', 'Gönder', 'Gönderilecek mesaj boş. Önce şablon oluşturun.');
+            return;
+          }
+
+          // Dry run açıkken buton zaten disabled olmalı; ama yine de güvenli kontrol
+          const dryRun = !!$('dryRunToggle')?.checked;
+          if (dryRun) {
+            const ok = await safeCopy(msg);
+            toast('warn', 'Dry Run', ok ? 'Dry Run açık: Mesaj kopyalandı, gönderim yapılmadı.' : 'Dry Run açık: Kopyalama başarısız.');
+            return;
+          }
+
+          // Bu noktada gerçek gönderim yerine: mesaj sayfasını aç + mesajı panoya kopyala
+          const okCopy = await safeCopy(msg);
+          openMessagePageForBuyer(buyer);
+
+          toast('ok', 'Gönder', (okCopy ? 'Mesaj kopyalandı. ' : '') + 'Mesaj sayfası açıldı.');
+          // arayuz_uygulama.js’in kendi sendMessage() navigasyonunu engelle
+          ev.stopImmediatePropagation();
+          ev.preventDefault();
+        } catch {
+          // Hiç hata fırlatmayacak şekilde yut
+        }
+      }, true);
+    }
+
+    // ---- Puter AI (yalnızca bu dosyada) ----
+    function initPuterAi() {
+      const aiStatus = $('aiStatus');
+      const aiLoader = $('aiLoader');
+      const btnRewrite = $('btnAiRewrite');
+      const btnDraft = $('btnAiDraftFromSmm');
+      const btnShorten = $('btnAiShorten');
+      const tone = $('aiTone');
+      const extra = $('aiPromptExtra');
+
+      const setAiReady = (txt) => { if (aiStatus) aiStatus.textContent = txt; };
+
+      // UI disable helper
+      function setBusy(busy) {
+        if (aiLoader) aiLoader.style.display = busy ? 'flex' : 'none';
+        [btnRewrite, btnDraft, btnShorten].forEach(b => { if (b) b.disabled = !!busy; });
+      }
+
+      // Puter hazır mı?
+      async function waitPuterReady() {
+        try {
+          if (!window.puter) return false;
+          if (window.puter?.onReady) {
+            await new Promise(resolve => window.puter.onReady(resolve));
+          }
+          return !!window.puter?.ai?.chat;
+        } catch {
+          return false;
+        }
+      }
+
+      // Politika notu: banned tokens projede var; burada AI prompta “yasaklı kelimeleri kullanma” notu ekliyoruz.
+      const bannedTokens = ['MAX','HIZ','FİYAT'];
+
+      function readSmmDetails() {
+        return {
+          smm_order_id: safeText($('smm_order_id'), ''),
+          smm_date: safeText($('smm_date'), ''),
+          smm_link: safeText($('smm_link'), ''),
+          smm_start: safeText($('smm_start'), ''),
+          smm_quantity: safeText($('smm_quantity'), ''),
+          smm_service: safeText($('smm_service'), ''),
+          smm_status: safeText($('smm_status'), ''),
+          smm_remains: safeText($('smm_remains'), ''),
+        };
+      }
+
+      function getBaseMessage() {
+        return safeText($('messagePreview'), '');
+      }
+
+      function getBuyerFromSelected() {
+        return getBuyerUsernameFromSelected();
+      }
+
+      function toneText(v) {
+        switch (String(v || 'nazik')) {
+          case 'cok_nazik': return 'ÇOK nazik, empatik, özür dileyen ve çözüm odaklı.';
+          case 'resmi': return 'Resmi, net, kısa; gereksiz samimiyet yok.';
+          case 'kisa': return 'Çok kısa, tek paragraf, net aksiyonlar.';
+          default: return 'Nazik, çözüm odaklı ve güven veren.';
+        }
+      }
+
+      async function runAi(prompt) {
+        const ok = await waitPuterReady();
+        if (!ok) {
+          setAiReady('AI: hazır değil');
+          toast('bad', 'AI', 'Puter AI hazır değil. (Puter yüklenememiş olabilir)');
+          return null;
+        }
+        setAiReady('AI: hazır');
+        setBusy(true);
+        try {
+          const resp = await window.puter.ai.chat(prompt);
+          const out = String(resp || '').trim();
+          return out;
+        } catch (e) {
+          toast('bad', 'AI Hatası', String(e?.message || e || 'Bilinmeyen hata'));
+          return null;
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function aiRewrite() {
+        const base = getBaseMessage();
+        if (!base) {
+          toast('warn', 'AI', 'Önce mesaj üretin (Şablon Oluştur).');
+          return;
+        }
+
+        const buyer = getBuyerFromSelected();
+        const smm = readSmmDetails();
+        const t = toneText(tone?.value);
+
+        const prompt = `
+Sen bir panel destek asistanısın. Türkçe yaz.
+Amaç: Aşağıdaki mesajı ANLAMI KORUYARAK daha profesyonel hale getir.
+Ton: ${t}
+Kurallar:
+- Yasaklı kelimeleri KULLANMA: ${bannedTokens.join(', ')}
+- Kısa cümleler. 1 paragraf veya en fazla 2 paragraf.
+- Net aksiyon: "kontrol ediyoruz / güncelliyoruz / bilgi vereceğiz" gibi.
+- Sipariş ve SMM bilgisi varsa entegre et, ama uydurma bilgi ekleme.
+
+Müşteri: ${buyer || '(bilinmiyor)'}
+SMM: ${JSON.stringify(smm, null, 2)}
+
+Orijinal Mesaj:
+"""${base}"""
+
+Ek Not:
+"""${safeText(extra,'')}"""
+
+Çıktı: Sadece final mesaj metnini ver.
+        `.trim();
+
+        const out = await runAi(prompt);
+        if (!out) return;
+
+        const mp = $('messagePreview');
+        if (mp) mp.value = out;
+        toast('ok', 'AI', 'Mesaj iyileştirildi.');
+      }
+
+      async function aiDraftFromSmm() {
+        const buyer = getBuyerFromSelected();
+        const smm = readSmmDetails();
+        if (!smm?.smm_order_id || smm.smm_order_id === '-') {
+          toast('warn', 'AI', 'SMM detayı yok. Önce eşleşen bir satır seçin.');
+          return;
+        }
+        const t = toneText(tone?.value);
+
+        const prompt = `
+Sen bir sosyal medya panel destek asistanısın. Türkçe yaz.
+Ton: ${t}
+Kurallar:
+- Yasaklı kelimeleri KULLANMA: ${bannedTokens.join(', ')}
+- Uydurma bilgi ekleme. Eksik alanları "bilgi alınamadı" diyerek belirt.
+- Mesaj "DEĞERLİ MÜŞTERİMİZ;" ile başlayabilir.
+- Sipariş durumu ve link gibi alanları net ver.
+
+Müşteri: ${buyer || '(bilinmiyor)'}
+SMM bilgisi:
+${JSON.stringify(smm, null, 2)}
+
+Ek Not:
+"""${safeText(extra,'')}"""
+
+Çıktı: Sadece final mesaj metnini ver.
+        `.trim();
+
+        const out = await runAi(prompt);
+        if (!out) return;
+
+        const mp = $('messagePreview');
+        if (mp) mp.value = out;
+        // Mesaj sekmesine otomatik geç
+        const msgTab = qs('.pro-tab[data-protab="message"]');
+        msgTab?.click();
+        toast('ok', 'AI', 'SMM’den taslak üretildi.');
+      }
+
+      async function aiShorten() {
+        const base = getBaseMessage();
+        if (!base) {
+          toast('warn', 'AI', 'Kısaltmak için önce mesaj üretin.');
+          return;
+        }
+        const prompt = `
+Türkçe yaz. Aşağıdaki mesajı anlamı koruyarak %35-55 kısalt.
+Kurallar:
+- Yasaklı kelimeleri KULLANMA: ${bannedTokens.join(', ')}
+- Tek paragraf, net ve nazik.
+
+Mesaj:
+"""${base}"""
+
+Çıktı: Sadece final mesaj metnini ver.
+        `.trim();
+
+        const out = await runAi(prompt);
+        if (!out) return;
+
+        const mp = $('messagePreview');
+        if (mp) mp.value = out;
+        toast('ok', 'AI', 'Mesaj kısaltıldı.');
+      }
+
+      // Event binding
+      (async () => {
+        const ok = await waitPuterReady();
+        setAiReady(ok ? 'AI: hazır' : 'AI: hazır değil');
+        if (ok) toast('ok', 'AI', 'Puter AI hazır.');
+      })();
+
+      if (btnRewrite) btnRewrite.addEventListener('click', aiRewrite);
+      if (btnDraft) btnDraft.addEventListener('click', aiDraftFromSmm);
+      if (btnShorten) btnShorten.addEventListener('click', aiShorten);
+    }
+
+    // ---- Sync selected header periodically (arayuz_uygulama.js state’i içeride) ----
+    function initSelectedWatcher() {
+      const tbody = $('ordersBody');
+      if (!tbody) return;
+
+      // İlk durum
+      updateSelectedHeaderFromRow(getSelectedRow());
+
+      // “seçili satır değiştiğinde” hızlı update
+      const mo = new MutationObserver(() => {
+        updateSelectedHeaderFromRow(getSelectedRow());
+      });
+      mo.observe(tbody, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+
+    // ---- Boot ----
+    function boot() {
+      try { initPanelToggles(); } catch {}
+      try { initRightTabs(); } catch {}
+      try { enhanceTableRows(); } catch {}
+      try { initQuickActions(); } catch {}
+      try { initBuyerClickBehavior(); } catch {}
+      try { initSendOverride(); } catch {}
+      try { initPuterAi(); } catch {}
+      try { initSelectedWatcher(); } catch {}
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+      boot();
+    }
+  </script>
+
+  <!-- =====================================================================
+       (KORU) JavaScript dosyaları - sırayla bağlanır
+       ===================================================================== -->
   <script type="module" src="kurallar_dom_regex_url.js"></script>
   <script type="module" src="kaziyici_hesap_com_tr.js"></script>
   <script type="module" src="kaziyici_anabayiniz_com.js"></script>
