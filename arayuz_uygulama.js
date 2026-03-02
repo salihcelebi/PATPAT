@@ -27,6 +27,7 @@ const state = {
   isRunning: false,
   abortController: null,
   rulesPack: null,
+  aiMode: 'TEMPLATE',
 };
 
 // FIX5: tarama durumu (gerçek zamanlı UI)
@@ -191,10 +192,6 @@ function initRefs() {
   refs.tableTitle = document.getElementById('tableTitle');
   refs.templateSelect = document.getElementById('templateSelect');
   refs.btnGenerateTemplate = document.getElementById('btnGenerateTemplate');
-  refs.btnOpenMessagePage = document.getElementById('btnOpenMessagePage');
-  refs.btnAiDraft = document.getElementById('btnAiDraft');
-  refs.btnReadCustomerMessages = document.getElementById('btnReadCustomerMessages');
-  refs.aiDraftText = document.getElementById('aiDraftText');
   refs.btnSendMessage = document.getElementById('btnSendMessage') || document.getElementById('btnSendReply');
   refs.btnCopyMessage = document.getElementById('btnCopyMessage');
   refs.messagePreview = document.getElementById('messagePreview');
@@ -222,6 +219,13 @@ function initRefs() {
   refs.btnRetry = document.getElementById('btnRetry');
   refs.btnManual = document.getElementById('btnManual');
   refs.btnPuterChatDemo = document.getElementById('btnPuterChatDemo');
+  refs.btnReadCustomerMessages = document.getElementById('btnReadCustomerMessages');
+  refs.btnAiDraft = document.getElementById('btnAiDraft');
+  refs.aiDraftText = document.getElementById('aiDraftText');
+  refs.aiAdminNote = document.getElementById('aiAdminNote');
+  refs.aiModeTemplate = document.getElementById('aiModeTemplate');
+  refs.aiModeManual = document.getElementById('aiModeManual');
+  refs.aiModeAutopilot = document.getElementById('aiModeAutopilot');
   refs.statTotalOrders = document.getElementById('statTotalOrders');
   refs.statProblematic = document.getElementById('statProblematic');
   refs.statReturnprocess = document.getElementById('statReturnprocess');
@@ -260,6 +264,56 @@ function renderOverviewStats() {
   if (refs.statTotalOrders) refs.statTotalOrders.textContent = String(total);
   if (refs.statProblematic) refs.statProblematic.textContent = String(problematic);
   if (refs.statReturnprocess) refs.statReturnprocess.textContent = String(returns);
+}
+
+function getSelectedOrderAndSmm() {
+  if (!selectedOrderId) return { orderRow: null, smmRow: null };
+  const orderRow = recordStore.orders.get(String(selectedOrderId));
+  const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
+  return { orderRow, smmRow };
+}
+
+function updateAiControls() {
+  const { orderRow } = getSelectedOrderAndSmm();
+  const hasSelection = Boolean(orderRow);
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = !hasSelection;
+  if (refs.btnAiDraft) refs.btnAiDraft.disabled = !hasSelection;
+  if (refs.aiAdminNote) {
+    refs.aiAdminNote.classList.remove('hidden');
+    refs.aiAdminNote.textContent = hasSelection
+      ? 'Gecikme/İade/Problem tespit edildi; uygun şablon önerildi.'
+      : 'Önce tablodan bir sipariş seç.';
+  }
+}
+
+async function buildPuterDraft(orderRow, smmRow) {
+  const selectedType = refs.templateSelect?.value || 'auto';
+  const baseTemplate = generateMessage(orderRow, smmRow, selectedType, state.rulesPack);
+  const banned = state.rulesPack?.policy?.banned_tokens || ['MAX', 'HIZ', 'FİYAT'];
+
+  if (!(globalThis.puter && puter.ai && typeof puter.ai.chat === 'function')) {
+    return baseTemplate;
+  }
+
+  const prompt = [
+    'Türkçe müşteri destek asistanısın.',
+    'Aşağıdaki şablon iskeletini koru, sadece gerekli yerleri nazikçe iyileştir.',
+    `Şablon tipi: ${selectedType}`,
+    `Sipariş Durumu: ${statusLabelTr(smmRow?.status || orderRow?.status || '')}`,
+    `Müşteri: ${orderRow?.buyer_username || '-'}`,
+    `Yasaklı kelimeler: ${banned.join(', ')}`,
+    'Çıktıda yasaklı kelimeleri kullanma.',
+    'Temel şablon:',
+    baseTemplate,
+  ].join('\n');
+
+  try {
+    const aiRes = await puter.ai.chat(prompt);
+    const text = String(aiRes ?? '').trim();
+    return text || baseTemplate;
+  } catch {
+    return baseTemplate;
+  }
 }
 
 function renderOrdersTable() {
@@ -339,39 +393,8 @@ function selectOrderRow(orderId) {
   const type = refs.templateSelect.value;
   const message = smmRow ? generateMessage(orderRow, smmRow, type, state.rulesPack) : '';
   updateMessagePreview(message);
-  if (refs.btnAiDraft) refs.btnAiDraft.disabled = !orderRow;
-  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = !orderRow;
   if (refs.aiDraftText) refs.aiDraftText.value = message || '';
-
-}
-
-
-async function generateAiDraft(orderRow, smmRow) {
-  const baseMsg = generateMessage(orderRow, smmRow, refs.templateSelect?.value || 'auto', state.rulesPack);
-  const status = statusLabelTr(smmRow?.status || orderRow?.status || '');
-
-  const prompt = [
-    'Sen PATPAT destek asistanısın.',
-    'Aşağıdaki şablon dilini koru, kısa ve net cevap ver.',
-    `Müşteri: ${orderRow?.buyer_username || '-'}`,
-    `Sipariş ID: ${orderRow?.order_id || '-'}`,
-    `SMM ID: ${smmRow?.order_id || orderRow?.smm_id || '-'}`,
-    `Durum: ${status}`,
-    `Şablon Metni: ${baseMsg}`,
-    'Aynı anlamı koruyarak daha doğal, nazik Türkçe cevap üret.',
-  ].join('\n');
-
-  if (!(globalThis.puter && puter.ai && typeof puter.ai.chat === 'function')) {
-    return { text: baseMsg, source: 'template_fallback' };
-  }
-
-  try {
-    const resp = await puter.ai.chat(prompt);
-    const text = String(resp ?? '').trim();
-    return { text: text || baseMsg, source: 'puter_ai' };
-  } catch (e) {
-    return { text: baseMsg, source: `template_error:${String(e?.message || e)}` };
-  }
+  updateAiControls();
 }
 
 function fillSmmDetails(orderRow, smmRow) {
@@ -583,25 +606,6 @@ function attachEvents() {
       updateMessagePreview(message);
     }
   });
-  if (refs.btnOpenMessagePage) refs.btnOpenMessagePage.addEventListener('click', () => {
-    if (!selectedOrderId) return;
-    const orderRow = recordStore.orders.get(String(selectedOrderId));
-    const username = String(orderRow?.buyer_username || '').trim();
-    if (!username) return;
-    const profileUrl = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
-    window.open(profileUrl, '_blank', 'noopener,noreferrer');
-    pushLog({ level: 'info', module: 'ui', action: 'open_message_page', result: profileUrl });
-  });
-
-  if (refs.btnAiDraft) refs.btnAiDraft.addEventListener('click', async () => {
-    if (!selectedOrderId) return;
-    const orderRow = recordStore.orders.get(String(selectedOrderId));
-    const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
-    const draft = await generateAiDraft(orderRow, smmRow);
-    if (refs.aiDraftText) refs.aiDraftText.value = draft.text;
-    updateMessagePreview(draft.text);
-    pushLog({ level: 'info', module: 'ai', action: 'draft', result: draft.source });
-  });
   refs.btnSendMessage.addEventListener('click', async (ev) => {
     if (!selectedOrderId) return;
 
@@ -678,6 +682,31 @@ function attachEvents() {
   if (refs.btnManual) refs.btnManual.addEventListener('click', () => {
     // manual handoff; stub
     pushLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
+  });
+
+  if (refs.aiModeTemplate) refs.aiModeTemplate.addEventListener('change', () => { if (refs.aiModeTemplate.checked) state.aiMode = 'TEMPLATE'; });
+  if (refs.aiModeManual) refs.aiModeManual.addEventListener('change', () => { if (refs.aiModeManual.checked) state.aiMode = 'MANUAL'; });
+  if (refs.aiModeAutopilot) refs.aiModeAutopilot.addEventListener('change', () => { if (refs.aiModeAutopilot.checked) state.aiMode = 'AUTOPILOT'; });
+
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.addEventListener('click', () => {
+    const { orderRow } = getSelectedOrderAndSmm();
+    if (!orderRow) return;
+    const username = String(orderRow.buyer_username || '').trim();
+    if (!username) return;
+    const messagePage = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
+    window.open(messagePage, '_blank', 'noopener,noreferrer');
+    pushLog({ level: 'info', module: 'ai', action: 'open_message_page', result: messagePage });
+  });
+
+  if (refs.btnAiDraft) refs.btnAiDraft.addEventListener('click', async () => {
+    const { orderRow, smmRow } = getSelectedOrderAndSmm();
+    if (!orderRow) return;
+    refs.btnAiDraft.disabled = true;
+    const draft = await buildPuterDraft(orderRow, smmRow);
+    if (refs.aiDraftText) refs.aiDraftText.value = draft;
+    updateMessagePreview(draft);
+    refs.btnAiDraft.disabled = false;
+    pushLog({ level: 'info', module: 'ai', action: 'draft', result: `len:${String(draft || '').length}` });
   });
 
   if (refs.btnPuterChatDemo) {
@@ -826,8 +855,6 @@ async function init() {
   });
   renderOrdersTable();
   renderLogs();
-  if (refs.btnAiDraft) refs.btnAiDraft.disabled = true;
-  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = true;
   if (refs.compactLogsOutput) {
     refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
   }
