@@ -191,6 +191,10 @@ function initRefs() {
   refs.tableTitle = document.getElementById('tableTitle');
   refs.templateSelect = document.getElementById('templateSelect');
   refs.btnGenerateTemplate = document.getElementById('btnGenerateTemplate');
+  refs.btnOpenMessagePage = document.getElementById('btnOpenMessagePage');
+  refs.btnAiDraft = document.getElementById('btnAiDraft');
+  refs.btnReadCustomerMessages = document.getElementById('btnReadCustomerMessages');
+  refs.aiDraftText = document.getElementById('aiDraftText');
   refs.btnSendMessage = document.getElementById('btnSendMessage') || document.getElementById('btnSendReply');
   refs.btnCopyMessage = document.getElementById('btnCopyMessage');
   refs.messagePreview = document.getElementById('messagePreview');
@@ -335,6 +339,39 @@ function selectOrderRow(orderId) {
   const type = refs.templateSelect.value;
   const message = smmRow ? generateMessage(orderRow, smmRow, type, state.rulesPack) : '';
   updateMessagePreview(message);
+  if (refs.btnAiDraft) refs.btnAiDraft.disabled = !orderRow;
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = !orderRow;
+  if (refs.aiDraftText) refs.aiDraftText.value = message || '';
+
+}
+
+
+async function generateAiDraft(orderRow, smmRow) {
+  const baseMsg = generateMessage(orderRow, smmRow, refs.templateSelect?.value || 'auto', state.rulesPack);
+  const status = statusLabelTr(smmRow?.status || orderRow?.status || '');
+
+  const prompt = [
+    'Sen PATPAT destek asistanısın.',
+    'Aşağıdaki şablon dilini koru, kısa ve net cevap ver.',
+    `Müşteri: ${orderRow?.buyer_username || '-'}`,
+    `Sipariş ID: ${orderRow?.order_id || '-'}`,
+    `SMM ID: ${smmRow?.order_id || orderRow?.smm_id || '-'}`,
+    `Durum: ${status}`,
+    `Şablon Metni: ${baseMsg}`,
+    'Aynı anlamı koruyarak daha doğal, nazik Türkçe cevap üret.',
+  ].join('\n');
+
+  if (!(globalThis.puter && puter.ai && typeof puter.ai.chat === 'function')) {
+    return { text: baseMsg, source: 'template_fallback' };
+  }
+
+  try {
+    const resp = await puter.ai.chat(prompt);
+    const text = String(resp ?? '').trim();
+    return { text: text || baseMsg, source: 'puter_ai' };
+  } catch (e) {
+    return { text: baseMsg, source: `template_error:${String(e?.message || e)}` };
+  }
 }
 
 function fillSmmDetails(orderRow, smmRow) {
@@ -546,6 +583,25 @@ function attachEvents() {
       updateMessagePreview(message);
     }
   });
+  if (refs.btnOpenMessagePage) refs.btnOpenMessagePage.addEventListener('click', () => {
+    if (!selectedOrderId) return;
+    const orderRow = recordStore.orders.get(String(selectedOrderId));
+    const username = String(orderRow?.buyer_username || '').trim();
+    if (!username) return;
+    const profileUrl = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
+    window.open(profileUrl, '_blank', 'noopener,noreferrer');
+    pushLog({ level: 'info', module: 'ui', action: 'open_message_page', result: profileUrl });
+  });
+
+  if (refs.btnAiDraft) refs.btnAiDraft.addEventListener('click', async () => {
+    if (!selectedOrderId) return;
+    const orderRow = recordStore.orders.get(String(selectedOrderId));
+    const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
+    const draft = await generateAiDraft(orderRow, smmRow);
+    if (refs.aiDraftText) refs.aiDraftText.value = draft.text;
+    updateMessagePreview(draft.text);
+    pushLog({ level: 'info', module: 'ai', action: 'draft', result: draft.source });
+  });
   refs.btnSendMessage.addEventListener('click', async (ev) => {
     if (!selectedOrderId) return;
 
@@ -584,7 +640,7 @@ function attachEvents() {
       // ignore
     }
   });
-  refs.logLevelFilter.addEventListener('change', renderLogs);
+  if (refs.logLevelFilter) refs.logLevelFilter.addEventListener('change', renderLogs);
   if (refs.logSearchInput) refs.logSearchInput.addEventListener('input', renderLogs);
 
   // log araçları
@@ -615,11 +671,11 @@ function attachEvents() {
     LogManager.clear();
     renderLogs();
   });
-  refs.btnRetry.addEventListener('click', () => {
+  if (refs.btnRetry) refs.btnRetry.addEventListener('click', () => {
     // retry son hatalı kayıt; stub
     pushLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
   });
-  refs.btnManual.addEventListener('click', () => {
+  if (refs.btnManual) refs.btnManual.addEventListener('click', () => {
     // manual handoff; stub
     pushLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
   });
@@ -770,6 +826,8 @@ async function init() {
   });
   renderOrdersTable();
   renderLogs();
+  if (refs.btnAiDraft) refs.btnAiDraft.disabled = true;
+  if (refs.btnReadCustomerMessages) refs.btnReadCustomerMessages.disabled = true;
   if (refs.compactLogsOutput) {
     refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
   }
