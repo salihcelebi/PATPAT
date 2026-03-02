@@ -28,7 +28,7 @@
       </div>
       <div class="top-row top-row--actions">
         <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
-        <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Simülasyon</label><input id="dryRunToggle" type="checkbox" checked /></div>
+        <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Deneme Modu (Göndermez)</label><input id="dryRunToggle" type="checkbox" checked /></div>
       </div>
       <section id="scanStatus" class="scan-status">
         <div class="scan-top"><span id="scanStateBadge" class="pill">Hazır</span><span id="scanCurrentUrl">-</span></div>
@@ -36,6 +36,11 @@
         <div class="scan-metrics"><span id="scanPercent">0%</span><span>·</span><span id="scanEta">-</span><span>·</span><span id="scanCount">0</span>/<span id="scanTotal">0</span></div>
         <div id="scanSummary" class="scan-summary"></div>
         <div id="scanFailures" class="hidden"></div>
+      </section>
+      <section class="overview-stats">
+        <div class="stat-chip"><span class="label">Toplam Sipariş</span><strong id="statTotalOrders">0</strong></div>
+        <div class="stat-chip"><span class="label">Sorunlu</span><strong id="statProblematic">0</strong></div>
+        <div class="stat-chip"><span class="label">İade Süreci</span><strong id="statReturnprocess">0</strong></div>
       </section>
     </header>
 
@@ -72,18 +77,34 @@
 
       <section class="template-card">
         <h4>Mesaj Önizleme</h4>
-        <textarea id="messagePreview" readonly rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
+        <textarea id="messagePreview" rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
         <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
         <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
         <textarea id="clipboardFallback" class="hidden" readonly></textarea>
+        <!-- Kısa açıklama (~15 kelime): Puter chat demo sayfasını açan küçük debug butonu; akışı bozmadan test sağlar. -->
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button id="btnPuterChatDemo" type="button">PUTER CHAT DEMO AÇ</button>
+          <span style="opacity:.7;font-size:12px;">(CDN: https://js.puter.com/v2/)</span>
+        </div>
       </section>
     </aside>
 
     <footer id="logPanel" class="log-panel card">
       <div class="log-header" id="logToggle"><h4>Loglar</h4><button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button></div>
-      <div class="log-toolbar" data-stop-toggle="1"><input id="logSearchInput" type="text" placeholder="Log ara" /><select id="logLevelFilter"><option value="">Seviye (hepsi)</option><option value="info">Bilgi</option><option value="warn">Uyarı</option><option value="error">Hata</option></select><select id="logPageFilter"><option value="">Sayfa (hepsi)</option><option value="teksekme">teksekme</option></select><select id="logSourceFilter"><option value="">İşlem/Kaynak (hepsi)</option><option value="ui">UI</option><option value="ai">AI</option><option value="mesaj_gonderici">Mesaj</option></select></div>
-      <div class="log-table-wrap"><table id="logsTable"><thead><tr><th>Seç</th><th>Zaman</th><th>Seviye</th><th>Sayfa</th><th>Kaynak</th><th>Aksiyon</th><th>Sonuç</th><th>Hata</th><th>Dosya:Satır</th></tr></thead><tbody id="logsBody"></tbody></table><div id="logsEmpty" class="empty-state">Henüz log yok.</div></div>
-      <div class="log-actions"><button id="btnCopyAllLogs">Tümünü Kopyala</button><button id="btnCopySelectedLogs">Seçileni Kopyala</button><button id="btnExportLogs">Dışa Aktar</button><button id="btnClearLogs">Temizle</button><button id="btnRetry">Yeniden Dene</button><button id="btnManual">Manuel Devret</button></div>
+      <div class="log-compact-wrap" data-stop-toggle="1">
+        <div class="compact-title">ÖNEMLİ LOG ÇIKTISI (compact)</div>
+        <textarea id="compactLogsOutput" readonly rows="6" placeholder="Compact log çıktısı burada."></textarea>
+      </div>
+      <div class="log-actions">
+        <button id="btnCopyAllLogs">LOGLARI KOPYALA</button>
+        <button id="btnExportLogs">PAKETİ HAZIRLA</button>
+        <button id="btnCopySelectedLogs" class="hidden">Seçileni Kopyala</button>
+        <button id="btnClearLogs" class="hidden">Temizle</button>
+        <button id="btnRetry" class="hidden">Yeniden Dene</button>
+        <button id="btnManual" class="hidden">Manuel Devret</button>
+      </div>
+      <div class="log-toolbar hidden" data-stop-toggle="1"><input id="logSearchInput" type="text" placeholder="Log ara" /><select id="logLevelFilter"><option value="">Seviye (hepsi)</option><option value="info">Bilgi</option><option value="warn">Uyarı</option><option value="error">Hata</option></select></div>
+      <div class="log-table-wrap hidden"><table id="logsTable"><thead><tr><th>Seç</th><th>Zaman</th><th>Seviye</th><th>Sayfa</th><th>Kaynak</th><th>Aksiyon</th><th>Sonuç</th><th>Hata</th><th>Dosya:Satır</th></tr></thead><tbody id="logsBody"></tbody></table><div id="logsEmpty" class="empty-state">Henüz log yok.</div></div>
     </footer>
   </div>
 
