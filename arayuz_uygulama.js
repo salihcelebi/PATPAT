@@ -12,6 +12,7 @@ import { taraAnabayiniz } from './kaziyici_anabayiniz_com.js';
 import { matchOrderAndSmm, generateMessage, checkPolicy } from './eslestirme_ve_sablonlar.js';
 import { sendMessage } from './mesaj_gonderici.js';
 import { recordStore, LogManager } from './kayit_ve_loglama.js';
+import { HesapProfileUrlRules } from './kurallar_dom_regex_url.js';
 
 // Uygulama durumu
 const state = {
@@ -132,6 +133,12 @@ function initRefs() {
   };
   refs.logSearchInput = document.getElementById('logSearchInput');
   refs.logLevelFilter = document.getElementById('logLevelFilter');
+  refs.logPageFilter = document.getElementById('logPageFilter');
+  refs.logSourceFilter = document.getElementById('logSourceFilter');
+  refs.logToggle = document.getElementById('logToggle');
+  refs.logStateBtn = document.getElementById('logStateBtn');
+  refs.app = document.getElementById('app');
+  refs.btnOpenMessagePage = document.getElementById('btnOpenMessagePage');
   refs.btnCopyAllLogs = document.getElementById('btnCopyAllLogs');
   refs.btnCopySelectedLogs = document.getElementById('btnCopySelectedLogs');
   refs.btnExportLogs = document.getElementById('btnExportLogs');
@@ -271,7 +278,9 @@ function updateMessagePreview(text) {
 function renderLogs() {
   const level = refs.logLevelFilter?.value || '';
   const search = refs.logSearchInput?.value?.trim?.() || '';
-  const logs = LogManager.getLogs({ level, search });
+  const page = refs.logPageFilter?.value || '';
+  const source = refs.logSourceFilter?.value || '';
+  const logs = LogManager.getLogs({ level, search, page, source });
   refs.logsBody.innerHTML = '';
   if (!logs.length) {
     refs.logsEmpty.style.display = 'block';
@@ -289,11 +298,14 @@ function renderLogs() {
     tdSel.appendChild(cb);
     tr.appendChild(tdSel);
 
-    ['ts','level','module','action','result','error'].forEach(key => {
+    ['ts','level','page','module','action','result','error'].forEach(key => {
       const td = document.createElement('td');
       td.textContent = log[key] || '';
       tr.appendChild(td);
     });
+    const tdLoc = document.createElement('td');
+    tdLoc.textContent = `${log.file || '-'}:${log.line || 0}`;
+    tr.appendChild(tdLoc);
     refs.logsBody.appendChild(tr);
   });
 }
@@ -458,7 +470,18 @@ function attachEvents() {
       // ignore
     }
   });
+  if (refs.btnOpenMessagePage) refs.btnOpenMessagePage.addEventListener('click', () => {
+    const orderRow = selectedOrderId ? recordStore.orders.get(String(selectedOrderId)) : null;
+    const url = HesapProfileUrlRules.buildProfileUrl(orderRow?.buyer_username || '');
+    if (!url) {
+      alert('Kullanıcı adı bulunamadı.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
+  });
   refs.logLevelFilter.addEventListener('change', renderLogs);
+  if (refs.logPageFilter) refs.logPageFilter.addEventListener('change', renderLogs);
+  if (refs.logSourceFilter) refs.logSourceFilter.addEventListener('change', renderLogs);
   if (refs.logSearchInput) refs.logSearchInput.addEventListener('input', renderLogs);
 
   // log araçları
@@ -472,14 +495,18 @@ function attachEvents() {
     const ids = new Set(getSelectedLogIds());
     const level = refs.logLevelFilter?.value || '';
     const search = refs.logSearchInput?.value?.trim?.() || '';
-    const logs = LogManager.getLogs({ level, search }).filter(l => ids.has(l.id));
+    const page = refs.logPageFilter?.value || '';
+    const source = refs.logSourceFilter?.value || '';
+    const logs = LogManager.getLogs({ level, search, page, source }).filter(l => ids.has(l.id));
     const text = logs.map(l => `${l.ts} ${l.level.toUpperCase()} ${l.page} ${l.module}.${l.action} ${l.file}:${l.line}:${l.col} ${l.message || l.result || ''} ${l.error ? (' | ' + l.error) : ''}`.trim()).join('\n');
     await copyToClipboard(text);
   });
   if (refs.btnExportLogs) refs.btnExportLogs.addEventListener('click', () => {
     const level = refs.logLevelFilter?.value || '';
     const search = refs.logSearchInput?.value?.trim?.() || '';
-    const jsonl = LogManager.exportJsonl({ level, search });
+    const page = refs.logPageFilter?.value || '';
+    const source = refs.logSourceFilter?.value || '';
+    const jsonl = LogManager.exportJsonl({ level, search, page, source });
     downloadTextFile(`patpat_logs_${Date.now()}.jsonl`, jsonl);
   });
   if (refs.btnClearLogs) refs.btnClearLogs.addEventListener('click', () => {
@@ -606,10 +633,43 @@ function stopScan() {
   refs.btnStop.disabled = true;
 }
 
+function wireLogPanelState() {
+  const key = 'PATPAT_LOG_PANEL_CLOSED';
+  const setClosed = (closed) => {
+    refs.app?.classList.toggle('logs-closed', closed);
+    if (refs.logStateBtn) refs.logStateBtn.textContent = closed ? 'AÇ ▼' : 'KAPAT ▲';
+    try { localStorage.setItem(key, closed ? '1' : '0'); } catch {}
+  };
+  let closed = false;
+  try { closed = localStorage.getItem(key) === '1'; } catch {}
+  setClosed(closed);
+  refs.logToggle?.addEventListener('click', (ev) => {
+    if (ev.target?.closest?.('[data-stop-toggle="1"]')) return;
+    setClosed(!refs.app?.classList.contains('logs-closed'));
+  });
+}
+
+function wireSidePanelActions() {
+  const updateActions = () => {
+    const row = selectedOrderId ? recordStore.orders.get(String(selectedOrderId)) : null;
+    const profileUrl = HesapProfileUrlRules.buildProfileUrl(row?.buyer_username || '');
+    const disabled = !profileUrl;
+    if (refs.btnOpenMessagePage) refs.btnOpenMessagePage.disabled = disabled;
+    if (disabled && refs.policyWarning) {
+      refs.policyWarning.textContent = 'Geçerli kullanıcı adı yok, aksiyonlar kilitlendi.';
+      refs.policyWarning.classList.remove('hidden');
+    }
+  };
+  refs.ordersBody?.addEventListener('click', () => setTimeout(updateActions, 0));
+  updateActions();
+}
+
 // Başlatıcı
 function init() {
   initRefs();
   attachEvents();
+  wireLogPanelState();
+  wireSidePanelActions();
   // Logları oturumda sakla ve gerçek zamanlı güncelle
   LogManager.init().then(() => {
     renderLogs();

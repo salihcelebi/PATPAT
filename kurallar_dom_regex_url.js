@@ -434,3 +434,18 @@ export function sampleTextHash(s) {
 }
 // Version etiketini loglarda kullanmak üzere dışa aktar
 export const RULESET_VERSION = '1.0.0';
+// HesapProfileUrlRules: kullanıcı profil URL kuralları
+export class HesapProfileUrlRules {
+  static BASE = 'https://hesap.com.tr';
+  static RX_USERNAME = /^[a-zA-Z0-9._-]{2,64}$/;
+
+  static sanitizeUsername(username) {
+    const raw = String(username || '').trim().replace(/^@/, '');
+    return this.RX_USERNAME.test(raw) ? raw : '';
+  }
+
+  static buildProfileUrl(username) {
+    const u = this.sanitizeUsername(username);
+    return u ? `${this.BASE}/u/${u}` : '';
+  }
+}

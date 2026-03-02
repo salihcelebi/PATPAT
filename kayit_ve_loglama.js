@@ -180,10 +180,12 @@ export class LogManager {
     LogManager._scheduleSave();
   }
 
-  static getLogs({ level = '', search = '' } = {}) {
+  static getLogs({ level = '', search = '', page = '', source = '' } = {}) {
     const q = String(search || '').trim().toLowerCase();
     return LogManager.logs.filter(l => {
       if (level && l.level !== level) return false;
+      if (page && l.page !== page) return false;
+      if (source && l.module !== source && l.action !== source) return false;
       if (!q) return true;
       const hay = `${l.ts} ${l.level} ${l.page} ${l.module} ${l.action} ${l.message} ${l.result} ${l.error} ${l.file}:${l.line}`.toLowerCase();
       return hay.includes(q);
