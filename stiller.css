@@ -564,6 +564,7 @@ button,select,input,textarea{min-height:var(--ctl-h);}
   align-items: center;
 }
 
+/* legacy */
 .scan-cta-row {
   display: flex;
   gap: 10px;
@@ -571,6 +572,7 @@ button,select,input,textarea{min-height:var(--ctl-h);}
   margin: 6px 4px 10px;
 }
 
+/* legacy */
 #btnStartHero {
   height: 36px;
   border-radius: 18px;
@@ -605,3 +607,8 @@ button,select,input,textarea{min-height:var(--ctl-h);}
 .stat-chip strong {
   font-size: 20px;
 }
+
+
+.log-compact-wrap{padding:10px;}
+.compact-title{font-size:12px;color:var(--muted-color);margin-bottom:6px;}
+#compactLogsOutput{width:100%;resize:vertical;min-height:120px;border:1px solid var(--line-color);background:#16122f;color:var(--text-color);border-radius:10px;padding:8px;font-family:ui-monospace,monospace;}

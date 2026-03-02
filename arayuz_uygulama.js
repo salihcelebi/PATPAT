@@ -100,6 +100,22 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function statusLabelTr(status) {
+  const map = {
+    pending: 'Beklemede',
+    processing: 'İşleniyor',
+    completed: 'Tamamlandı',
+    cancelled: 'İptal',
+    returnprocess: 'İade',
+    problematic: 'Sorunlu',
+    partial: 'Kısmi',
+    inprogress: 'Devam Ediyor',
+    inprogres: 'Devam Ediyor',
+  };
+  const key = String(status || '').toLowerCase();
+  return map[key] || (status || '-');
+}
+
 function setScanBadge(text, level = 'info') {
   if (!refs.scanStateBadge) return;
   refs.scanStateBadge.textContent = text;
@@ -198,6 +214,7 @@ function initRefs() {
   refs.clipboardFallback = document.getElementById('clipboardFallback');
   refs.logsBody = document.getElementById('logsBody');
   refs.logsEmpty = document.getElementById('logsEmpty');
+  refs.compactLogsOutput = document.getElementById('compactLogsOutput');
   refs.btnRetry = document.getElementById('btnRetry');
   refs.btnManual = document.getElementById('btnManual');
   refs.btnPuterChatDemo = document.getElementById('btnPuterChatDemo');
@@ -260,7 +277,7 @@ function renderOrdersTable() {
     tr.appendChild(tdId);
     // Durum
     const tdStatus = document.createElement('td');
-    tdStatus.textContent = row.status;
+    tdStatus.textContent = statusLabelTr(row.status);
     tr.appendChild(tdStatus);
     // İlan URL
     const tdUrl = document.createElement('td');
@@ -346,6 +363,9 @@ function renderLogs() {
   const level = refs.logLevelFilter?.value || '';
   const search = refs.logSearchInput?.value?.trim?.() || '';
   const logs = LogManager.getLogs({ level, search });
+  if (!refs.logsBody || !refs.logsEmpty) {
+    return;
+  }
   refs.logsBody.innerHTML = '';
   if (!logs.length) {
     refs.logsEmpty.style.display = 'block';
@@ -370,8 +390,10 @@ function renderLogs() {
     });
     refs.logsBody.appendChild(tr);
   });
+  if (refs.compactLogsOutput) {
+    refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
+  }
   applySimplify(document);
-  bindCompactLogButtons();
 }
 
 // Export fonksiyonları
@@ -467,6 +489,13 @@ async function retryFailure(f) {
   const q = (state.searchQuery || '').trim();
   if (q) rows = rows.filter(r => rowMatchesQuery(r, q));
   rows.forEach(o => recordStore.upsertOrder(o));
+  recordStore.orders.forEach((order, key) => {
+    if (!order.message_url) {
+      const buyer = String(order.buyer_username || '').trim();
+      order.message_url = buyer ? `https://hesap.com.tr/u/${encodeURIComponent(buyer)}` : null;
+      recordStore.orders.set(key, order);
+    }
+  });
   renderOrdersTable();
   pushLog({ level: 'info', module: 'scan', action: 'retry_hesap', result: `rows:${rows.length}`, message: url });
 }
@@ -560,10 +589,9 @@ function attachEvents() {
 
   // log araçları
   if (refs.btnCopyAllLogs) refs.btnCopyAllLogs.addEventListener('click', async () => {
-    const level = refs.logLevelFilter?.value || '';
-    const search = refs.logSearchInput?.value?.trim?.() || '';
-    const text = LogManager.exportText({ level, search });
-    await copyToClipboard(text);
+    const compactTxt = compactLinesFromEntries(logStore.getLastRun()).join('
+');
+    await copyToClipboard(compactTxt);
   });
   if (refs.btnCopySelectedLogs) refs.btnCopySelectedLogs.addEventListener('click', async () => {
     const ids = new Set(getSelectedLogIds());
@@ -574,10 +602,13 @@ function attachEvents() {
     await copyToClipboard(text);
   });
   if (refs.btnExportLogs) refs.btnExportLogs.addEventListener('click', () => {
-    const level = refs.logLevelFilter?.value || '';
-    const search = refs.logSearchInput?.value?.trim?.() || '';
-    const jsonl = LogManager.exportJsonl({ level, search });
-    downloadTextFile(`patpat_logs_${Date.now()}.jsonl`, jsonl);
+    const entries = logStore.getLastRun();
+    const compactTxt = compactLinesFromEntries(entries).join('
+');
+    const jsonl = entries.map((e) => JSON.stringify(e)).join('
+');
+    downloadTextFile('patpat_logs_compact.txt', compactTxt);
+    downloadTextFile('patpat_logs_raw.jsonl', jsonl);
   });
   if (refs.btnClearLogs) refs.btnClearLogs.addEventListener('click', () => {
     if (!confirm('Loglar temizlensin mi?')) return;
@@ -654,8 +685,8 @@ async function startScan() {
   recordStore.orders.forEach((order, key) => {
     if (order.smm_id && recordStore.smmOrders.has(String(order.smm_id))) {
       const smm = recordStore.smmOrders.get(String(order.smm_id));
-      // baseline: attach message_url placeholder
-      order.message_url = null;
+      const buyer = String(order.buyer_username || '').trim();
+      order.message_url = buyer ? `https://hesap.com.tr/u/${encodeURIComponent(buyer)}` : null;
       recordStore.orders.set(key, order);
     }
   });
@@ -739,8 +770,10 @@ async function init() {
   });
   renderOrdersTable();
   renderLogs();
+  if (refs.compactLogsOutput) {
+    refs.compactLogsOutput.value = compactLinesFromEntries(logStore.getLastRun()).join('\n');
+  }
   applySimplify(document);
-  bindCompactLogButtons();
 }
 
 if (document.readyState === 'loading') {
