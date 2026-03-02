@@ -13,6 +13,8 @@ import { matchOrderAndSmm, generateMessage, checkPolicy } from './eslestirme_ve_
 import { sendMessage } from './mesaj_gonderici.js';
 import { recordStore, LogManager } from './kayit_ve_loglama.js';
 import { ensureRulesPackLoaded } from './puter_rules_runtime.js';
+import { applySimplify } from './ui_simplify.js';
+import { makeLogStore, compactLinesFromEntries } from './log_compact.js';
 
 // Uygulama durumu
 const state = {
@@ -36,6 +38,50 @@ const scanUI = {
   doneSet: new Set(),
   failures: [], // {kind, source_url, status, page_no, smm_id, code, message}
 };
+
+
+const logStore = makeLogStore();
+let renderLogsTimer = null;
+
+function scheduleRenderLogs() {
+  if (renderLogsTimer) clearTimeout(renderLogsTimer);
+  renderLogsTimer = setTimeout(() => {
+    renderLogsTimer = null;
+    renderLogs();
+  }, 250);
+}
+
+function pushLog(entry) {
+  logStore.push(entry);
+  LogManager.addLog(entry);
+  scheduleRenderLogs();
+}
+
+function bindCompactLogButtons() {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const btnCopy = buttons.find((b) => String(b.textContent || '').trim().toUpperCase() === 'LOGLARI KOPYALA');
+  const btnPack = buttons.find((b) => String(b.textContent || '').trim().toUpperCase() === 'PAKETİ HAZIRLA');
+
+  if (btnCopy && !btnCopy.dataset.boundCompact) {
+    btnCopy.dataset.boundCompact = '1';
+    btnCopy.addEventListener('click', async () => {
+      const lines = compactLinesFromEntries(logStore.getLastRun());
+      const compactTxt = lines.join('\n');
+      await copyToClipboard(compactTxt);
+    });
+  }
+
+  if (btnPack && !btnPack.dataset.boundCompact) {
+    btnPack.dataset.boundCompact = '1';
+    btnPack.addEventListener('click', () => {
+      const entries = logStore.getLastRun();
+      const compactTxt = compactLinesFromEntries(entries).join('\n');
+      const jsonl = entries.map((e) => JSON.stringify(e)).join('\n');
+      downloadTextFile('patpat_logs_compact.txt', compactTxt);
+      downloadTextFile('patpat_logs_raw.jsonl', jsonl);
+    });
+  }
+}
 
 function formatEta(ms) {
   if (!isFinite(ms) || ms <= 0) return '-';
@@ -324,6 +370,8 @@ function renderLogs() {
     });
     refs.logsBody.appendChild(tr);
   });
+  applySimplify(document);
+  bindCompactLogButtons();
 }
 
 // Export fonksiyonları
@@ -405,8 +453,7 @@ async function retryFailure(f) {
     const smmId = f.smm_id;
     const { orders } = await taraAnabayiniz({ smmIds: [smmId] });
     orders.forEach(o => recordStore.upsertSmmOrder(o));
-    LogManager.addLog({ level: 'info', module: 'scan', action: 'retry_smm', result: 'ok', message: String(smmId) });
-    renderLogs();
+    pushLog({ level: 'info', module: 'scan', action: 'retry_smm', result: 'ok', message: String(smmId) });
     return;
   }
 
@@ -421,8 +468,7 @@ async function retryFailure(f) {
   if (q) rows = rows.filter(r => rowMatchesQuery(r, q));
   rows.forEach(o => recordStore.upsertOrder(o));
   renderOrdersTable();
-  LogManager.addLog({ level: 'info', module: 'scan', action: 'retry_hesap', result: `rows:${rows.length}`, message: url });
-  renderLogs();
+  pushLog({ level: 'info', module: 'scan', action: 'retry_hesap', result: `rows:${rows.length}`, message: url });
 }
 
 function attachEvents() {
@@ -481,8 +527,7 @@ function attachEvents() {
       ev.preventDefault();
       ev.stopImmediatePropagation();
       await copyToClipboard(message);
-      LogManager.addLog({ level: 'info', module: 'ui', action: 'sendMessage', result: 'DRY_RUN_COPY_ONLY' });
-      renderLogs();
+      pushLog({ level: 'info', module: 'ui', action: 'sendMessage', result: 'DRY_RUN_COPY_ONLY' });
       return;
     }
 
@@ -491,8 +536,7 @@ function attachEvents() {
       const profileUrl = `https://hesap.com.tr/u/${encodeURIComponent(username)}`;
       await copyToClipboard(message);
       window.open(profileUrl, '_blank', 'noopener,noreferrer');
-      LogManager.addLog({ level: 'info', module: 'ui', action: 'open_message_profile', result: profileUrl });
-      renderLogs();
+      pushLog({ level: 'info', module: 'ui', action: 'open_message_profile', result: profileUrl });
       return;
     }
 
@@ -502,8 +546,7 @@ function attachEvents() {
       messageText: message,
       dryRun: state.dryRun,
     });
-    LogManager.addLog({ level: result === 'ERROR' ? 'error' : 'warn', module: 'ui', action: 'sendMessageFallback', result });
-    renderLogs();
+    pushLog({ level: result === 'ERROR' ? 'error' : 'warn', module: 'ui', action: 'sendMessageFallback', result });
   });
   refs.btnCopyMessage.addEventListener('click', async () => {
     try {
@@ -543,13 +586,11 @@ function attachEvents() {
   });
   refs.btnRetry.addEventListener('click', () => {
     // retry son hatalı kayıt; stub
-    LogManager.addLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
-    renderLogs();
+    pushLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
   });
   refs.btnManual.addEventListener('click', () => {
     // manual handoff; stub
-    LogManager.addLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
-    renderLogs();
+    pushLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
   });
 
   if (refs.btnPuterChatDemo) {
@@ -568,8 +609,8 @@ async function startScan() {
   refs.btnStop.disabled = false;
   if (refs.btnStartHero) refs.btnStartHero.disabled = true;
   state.abortController = new AbortController();
-  LogManager.addLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
-  renderLogs();
+  logStore.startRun({ mode: state.mode, statusFilters: [...state.statusFilters], pageLimit: state.pageLimit, searchQuery: state.searchQuery, startedAt: Date.now() });
+  pushLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
   // temizle mevcut veriler
   recordStore.orders.clear();
   recordStore.smmOrders.clear();
@@ -589,8 +630,7 @@ async function startScan() {
       }
       updateScanUI();
     }
-    LogManager.addLog({ level: progress?.stage === 'error' ? 'error' : 'info', module: 'kaziyici_hesap', action: 'progress', result: JSON.stringify(progress).slice(0,160), error: progress?.stage === 'error' ? `${progress.code || ''} ${progress.message || ''}` : '' });
-    renderLogs();
+    pushLog({ level: progress?.stage === 'error' ? 'error' : 'info', module: 'kaziyici_hesap', action: 'progress', result: JSON.stringify(progress).slice(0,160), error: progress?.stage === 'error' ? `${progress.code || ''} ${progress.message || ''}` : '' });
   } });
   orders.forEach(o => recordStore.upsertOrder(o));
   // FIX5_ERRORS_TO_FAIL
@@ -606,8 +646,7 @@ async function startScan() {
   const smmIds = orders.map(o => o.smm_id).filter(Boolean);
   if (smmIds.length) {
     const { orders: smmOrders } = await taraAnabayiniz({ smmIds, abortSignal: state.abortController.signal, onProgress: progress => {
-      LogManager.addLog({ level: 'info', module: 'kaziyici_anabayiniz', action: 'progress', result: JSON.stringify(progress).slice(0,100) });
-      renderLogs();
+      pushLog({ level: 'info', module: 'kaziyici_anabayiniz', action: 'progress', result: JSON.stringify(progress).slice(0,100) });
     } });
     smmOrders.forEach(smm => recordStore.upsertSmmOrder(smm));
   }
@@ -621,7 +660,8 @@ async function startScan() {
     }
   });
   renderOrdersTable();
-  renderLogs();
+  logStore.endRun({ finishedAt: Date.now(), ordersCount: recordStore.orders.size, smmCount: recordStore.smmOrders.size });
+  scheduleRenderLogs();
 
   // FIX5: scan finish summary
   scanUI.running = false;
@@ -658,8 +698,8 @@ function stopScan() {
   updateScanUI();
 
   state.isRunning = false;
-    LogManager.addLog({ level: 'warn', module: 'ui', action: 'stop', result: 'aborted' });
-    renderLogs();
+    logStore.endRun({ finishedAt: Date.now(), aborted: true });
+    pushLog({ level: 'warn', module: 'ui', action: 'stop', result: 'aborted' });
     scanUI.running = false;
     setScanBadge('Durduruldu', 'warn');
     if (refs.scanEta) refs.scanEta.textContent = '-';
@@ -678,7 +718,7 @@ async function init() {
   await LogManager.init();
   try {
     state.rulesPack = await ensureRulesPackLoaded();
-    LogManager.addLog({
+    pushLog({
       level: 'info',
       module: 'ui',
       action: 'PUTER_RULES_LOADED',
@@ -686,7 +726,7 @@ async function init() {
     });
   } catch (e) {
     state.rulesPack = null;
-    LogManager.addLog({
+    pushLog({
       level: 'warn',
       module: 'ui',
       action: 'PUTER_RULES_LOAD_FAIL',
@@ -695,10 +735,12 @@ async function init() {
   }
 
   LogManager.subscribe(() => {
-    renderLogs();
+    scheduleRenderLogs();
   });
   renderOrdersTable();
   renderLogs();
+  applySimplify(document);
+  bindCompactLogButtons();
 }
 
 if (document.readyState === 'loading') {
