@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Patpat İlan Analizörü",
+  "version": "1.0.1",
+  "description": "İlan URL'lerini analiz eder, platform ve hizmeti otomatik tespit eder ve sonuçları tabloya yazar.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "clipboardRead",
+    "clipboardWrite",
+    "sidePanel"
+  ],
+  "action": {
+    "default_title": "Sipariş ve Şikayet Yönetimi",
+    "default_popup": "arayuz.html"
+  },
+  "side_panel": {
+    "default_path": "arayuz.html"
+  },
+  "host_permissions": [
+    "https://hesap.com.tr/*",
+    "https://anabayiniz.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "stiller.css",
+        "kurallar_dom_regex_url.js",
+        "kaziyici_hesap_com_tr.js",
+        "kaziyici_anabayiniz_com.js",
+        "eslestirme_ve_sablonlar.js",
+        "mesaj_gonderici.js",
+        "kayit_ve_loglama.js",
+        "arayuz_uygulama.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "minimum_chrome_version": "114"
+}
