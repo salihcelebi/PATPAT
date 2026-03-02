@@ -155,8 +155,9 @@ export async function taraHesap({ mode = 'analysis', statusFilters = [], pageLim
       for (let page = 1; page <= maxPages; page++) {
         if (abortSignal?.aborted) throw new Error('ABORTED');
         const url = page > 1 ? buildPagedUrl(baseUrl, page) : baseUrl;
-        // progress callback
-        onProgress({ source_url: url, status, page_no: page, run_id: runId });
+        // SCOD: BU GEREKSİNİM UYGULANDI - progress payload tüm stage'lerde aynı kimlik alanlarını korur.
+        const progressBase = { source_url: url, status, page_no: page, run_id: runId };
+        onProgress({ ...progressBase, stage: 'processing' });
         // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
         onProgress({ source_url: url, status, page_no: page, stage: 'fetch' });
         let html = '';

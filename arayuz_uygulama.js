@@ -172,6 +172,7 @@ function initRefs() {
   refs.autoSendToggle = document.getElementById('autoSendToggle');
   refs.dryRunToggle = document.getElementById('dryRunToggle');
   refs.btnStart = document.getElementById('btnStart');
+  refs.btnStartHero = document.getElementById('btnStartHero');
   refs.btnStop = document.getElementById('btnStop');
   refs.btnExportCsv = document.getElementById('btnExportCsv');
   refs.btnExportJson = document.getElementById('btnExportJson');
@@ -584,6 +585,7 @@ function attachEvents() {
     updateMessagePreview(refs.messagePreview.value);
   });
   refs.btnStart.addEventListener('click', startScan);
+  if (refs.btnStartHero) refs.btnStartHero.addEventListener('click', startScan);
   refs.btnStop.addEventListener('click', stopScan);
   refs.btnExportCsv.addEventListener('click', exportCsv);
   refs.btnExportJson.addEventListener('click', exportJsonl);
@@ -642,7 +644,7 @@ function attachEvents() {
       // ignore
     }
   });
-  refs.logLevelFilter.addEventListener('change', renderLogs);
+  if (refs.logLevelFilter) refs.logLevelFilter.addEventListener('change', renderLogs);
   if (refs.logSearchInput) refs.logSearchInput.addEventListener('input', renderLogs);
 
   // log araçları
@@ -670,11 +672,11 @@ function attachEvents() {
     LogManager.clear();
     renderLogs();
   });
-  refs.btnRetry.addEventListener('click', () => {
+  if (refs.btnRetry) refs.btnRetry.addEventListener('click', () => {
     // retry son hatalı kayıt; stub
     pushLog({ level: 'info', module: 'ui', action: 'retry', result: 'clicked' });
   });
-  refs.btnManual.addEventListener('click', () => {
+  if (refs.btnManual) refs.btnManual.addEventListener('click', () => {
     // manual handoff; stub
     pushLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
   });
@@ -718,6 +720,7 @@ async function startScan() {
   state.isRunning = true;
   refs.btnStart.disabled = true;
   refs.btnStop.disabled = false;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = true;
   state.abortController = new AbortController();
   logStore.startRun({ mode: state.mode, statusFilters: [...state.statusFilters], pageLimit: state.pageLimit, searchQuery: state.searchQuery, startedAt: Date.now() });
   pushLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
@@ -788,6 +791,7 @@ async function startScan() {
   state.isRunning = false;
   refs.btnStart.disabled = false;
   refs.btnStop.disabled = true;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = false;
 }
 
 function stopScan() {
@@ -816,6 +820,7 @@ function stopScan() {
   }
   refs.btnStart.disabled = false;
   refs.btnStop.disabled = true;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = false;
 }
 
 // Başlatıcı
