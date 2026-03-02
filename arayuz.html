@@ -30,12 +30,21 @@
         <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
         <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Simülasyon</label><input id="dryRunToggle" type="checkbox" checked /></div>
       </div>
+      <div class="scan-cta-row">
+        <button id="btnStartHero" type="button">🔎 TARAMAYI BAŞLAT</button>
+        <span class="muted">Sablon akışına uygun hızlı başlatma butonu</span>
+      </div>
       <section id="scanStatus" class="scan-status">
         <div class="scan-top"><span id="scanStateBadge" class="pill">Hazır</span><span id="scanCurrentUrl">-</span></div>
         <div class="scan-progress"><div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div></div>
         <div class="scan-metrics"><span id="scanPercent">0%</span><span>·</span><span id="scanEta">-</span><span>·</span><span id="scanCount">0</span>/<span id="scanTotal">0</span></div>
         <div id="scanSummary" class="scan-summary"></div>
         <div id="scanFailures" class="hidden"></div>
+      </section>
+      <section class="overview-stats">
+        <div class="stat-chip"><span class="label">Toplam Sipariş</span><strong id="statTotalOrders">0</strong></div>
+        <div class="stat-chip"><span class="label">Sorunlu</span><strong id="statProblematic">0</strong></div>
+        <div class="stat-chip"><span class="label">İade Süreci</span><strong id="statReturnprocess">0</strong></div>
       </section>
     </header>
 
@@ -76,6 +85,11 @@
         <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
         <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
         <textarea id="clipboardFallback" class="hidden" readonly></textarea>
+        <!-- Kısa açıklama (~15 kelime): Puter chat demo sayfasını açan küçük debug butonu; akışı bozmadan test sağlar. -->
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button id="btnPuterChatDemo" type="button">PUTER CHAT DEMO AÇ</button>
+          <span style="opacity:.7;font-size:12px;">(CDN: https://js.puter.com/v2/)</span>
+        </div>
       </section>
     </aside>
 
