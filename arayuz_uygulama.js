@@ -141,6 +141,7 @@ function initRefs() {
   refs.logsEmpty = document.getElementById('logsEmpty');
   refs.btnRetry = document.getElementById('btnRetry');
   refs.btnManual = document.getElementById('btnManual');
+  refs.btnPuterChatDemo = document.getElementById('btnPuterChatDemo');
 }
 
 // UI state güncelleme fonksiyonları
@@ -497,6 +498,14 @@ function attachEvents() {
     LogManager.addLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
     renderLogs();
   });
+
+  // Kısa açıklama (~15 kelime): Demo butonu, Puter chat arayüzünü yeni sekmede açarak hızlı test sağlar.
+  if (refs.btnPuterChatDemo) {
+    refs.btnPuterChatDemo.addEventListener('click', () => {
+      const url = chrome.runtime.getURL('puter_chat_demo.html');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
+  }
 }
 
 // Taramayı başlat

@@ -779,94 +779,19 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
               <span style="font-size:12px; color: var(--pro-muted); font-weight:800;">Şablon + kontrol</span>
             </h4>
 
-            <!-- (KORU) arayuz_uygulama.js bu ID’yi kullanıyor -->
-            <textarea id="messagePreview" readonly rows="8" placeholder="Bir satır seçin; mesaj burada oluşacak..."></textarea>
-
-            <!-- (KORU) policy uyarısı -->
-            <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı ifadeler içeriyor.</div>
-
-            <!-- (KORU) Template actions: ID’ler korunur -->
-            <div class="template-actions">
-              <select id="templateSelect">
-                <option value="auto">Otomatik Bilgilendirme</option>
-                <option value="complaint">Şikayet Yanıtı</option>
-              </select>
-
-              <button id="btnGenerateTemplate" type="button">Şablon Oluştur</button>
-              <button id="btnSendMessage" type="button">Gönder</button>
-              <button id="btnCopyMessage" type="button">Kopyala</button>
-            </div>
-
-            <!-- EK: Hızlı aksiyonlar (arayuz_uygulama.js’i bozmaz) -->
-            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-              <button class="pro-btn" type="button" id="btnOpenMessagePage2" title="Mesaj sayfasını aç">🔗 Mesaj Sayfasını Aç</button>
-              <button class="pro-btn" type="button" id="btnCopyAndToast" title="Kopyala ve bildir">✅ Kopyala & Bildir</button>
-            </div>
-
-            <div style="margin-top:10px; color: var(--pro-muted); font-size:12px; line-height:1.35;">
-              İpucu: “Gönder” butonu, projedeki kurala göre müşteri mesaj sayfasını açacak şekilde ele alınır.
-            </div>
-          </div>
+      <section class="template-card">
+        <h4>Mesaj Önizleme</h4>
+        <textarea id="messagePreview" readonly rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
+        <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
+        <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
+        <textarea id="clipboardFallback" class="hidden" readonly></textarea>
+        <!-- Kısa açıklama (~15 kelime): Puter chat demo sayfasını açan küçük debug butonu; akışı bozmadan test sağlar. -->
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button id="btnPuterChatDemo" type="button">PUTER CHAT DEMO AÇ</button>
+          <span style="opacity:.7;font-size:12px;">(CDN: https://js.puter.com/v2/)</span>
         </div>
-
-        <!-- PANEL: AI (Puter.js yalnızca burada) -->
-        <div class="pro-panel" data-propanel="ai">
-          <div class="template-card">
-            <h4>
-              <span>⚡ AI Asistan (Puter.js)</span>
-              <span style="font-size:12px; color: var(--pro-muted); font-weight:800;" id="aiStatus">AI: hazır değil</span>
-            </h4>
-
-            <div style="display:grid; gap:10px;">
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button class="pro-btn primary" type="button" id="btnAiRewrite">✨ Mesajı İyileştir</button>
-                <button class="pro-btn" type="button" id="btnAiDraftFromSmm">🧾 SMM’den Taslak</button>
-                <button class="pro-btn" type="button" id="btnAiShorten">🪶 Kısalt</button>
-              </div>
-
-              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <label style="font-size:12px; color: var(--pro-muted); font-weight:900;">Ton:</label>
-                <select id="aiTone" style="height:36px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); color:var(--pro-text); padding:0 10px;">
-                  <option value="nazik">Nazik & çözüm odaklı</option>
-                  <option value="cok_nazik">Çok nazik (kızgın müşteri)</option>
-                  <option value="resmi">Resmi</option>
-                  <option value="kisa">Kısa & net</option>
-                </select>
-              </div>
-
-              <div style="position:relative;">
-                <textarea id="aiPromptExtra" rows="5" placeholder="Ek not (opsiyonel): Örn. müşteri çok kızgın, özür + çözüm öncelikli."
-                  style="width:100%; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:10px; color:var(--pro-text); outline:none;"></textarea>
-
-                <div id="aiLoader"
-                  style="display:none; position:absolute; inset:0; border-radius:12px; background:rgba(0,0,0,0.45); backdrop-filter: blur(8px); align-items:center; justify-content:center; gap:10px; font-weight:900;">
-                  <span style="display:inline-flex; width:10px; height:10px; border-radius:999px; background:rgba(55,178,77,0.95); box-shadow:0 0 0 6px rgba(55,178,77,0.16);"></span>
-                  <span>AI hazırlanıyor...</span>
-                </div>
-              </div>
-
-              <div style="color: var(--pro-muted); font-size:12px; line-height:1.35;">
-                Not: AI çıktısı “Mesaj Önizleme” alanına yazılır. Politika kontrolü yine uygulanır.
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </aside>
-    </main>
-
-    <!-- Alt panel: log akışı ve hata merkezi -->
-    <footer id="logPanel" class="log-panel">
-      <div class="log-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <h4>Loglar</h4>
-          <select id="logLevelFilter">
-            <option value="">Seviye (hepsi)</option>
-            <option value="info">Bilgi</option>
-            <option value="warn">Uyarı</option>
-            <option value="error">Hata</option>
-          </select>
-        </div>
+      </section>
+    </aside>
 
         <!-- EK: log panel toggle butonu (ID korunmaz; arayuz_uygulama.js’e dokunmaz) -->
         <button class="pro-btn" type="button" id="btnToggleLogPanel2" title="Log panelini kapat/aç">📜 Kapat/Aç</button>
