@@ -696,6 +696,22 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
         <button id="btnExportCsv" type="button">CSV</button>
         <button id="btnExportJson" type="button">JSONL</button>
       </div>
+      <div class="scan-cta-row">
+        <button id="btnStartHero" type="button">🔎 TARAMAYI BAŞLAT</button>
+        <span class="muted">Sablon akışına uygun hızlı başlatma butonu</span>
+      </div>
+      <section id="scanStatus" class="scan-status">
+        <div class="scan-top"><span id="scanStateBadge" class="pill">Hazır</span><span id="scanCurrentUrl">-</span></div>
+        <div class="scan-progress"><div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div></div>
+        <div class="scan-metrics"><span id="scanPercent">0%</span><span>·</span><span id="scanEta">-</span><span>·</span><span id="scanCount">0</span>/<span id="scanTotal">0</span></div>
+        <div id="scanSummary" class="scan-summary"></div>
+        <div id="scanFailures" class="hidden"></div>
+      </section>
+      <section class="overview-stats">
+        <div class="stat-chip"><span class="label">Toplam Sipariş</span><strong id="statTotalOrders">0</strong></div>
+        <div class="stat-chip"><span class="label">Sorunlu</span><strong id="statProblematic">0</strong></div>
+        <div class="stat-chip"><span class="label">İade Süreci</span><strong id="statReturnprocess">0</strong></div>
+      </section>
     </header>
 
     <!-- Ana içerik bölgesi -->
