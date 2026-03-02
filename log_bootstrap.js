@@ -46,7 +46,6 @@
     if (root) return;
     root = document.createElement("div");
     root.id = "patpatBootOverlay";
-    root.classList.add("minimized");
     root.style.cssText = [
       "position:fixed","left:10px","right:10px","bottom:10px","max-height:36vh",
       "z-index:99999","background:#ffffff","color:#111","border:1px solid #ddd",
@@ -156,14 +155,12 @@
   // Hooks
   window.addEventListener("error", (e) => {
     const { file, line, col } = parseStackForFileLine(e?.error?.stack || "");
-    root?.classList?.remove?.("minimized");
     add("error", "window.error", e?.message || e, file || (e?.filename || ""), line || (e?.lineno || 0), col || (e?.colno || 0));
   });
 
   window.addEventListener("unhandledrejection", (e) => {
     const reason = e?.reason;
     const { file, line, col } = parseStackForFileLine(reason?.stack);
-    root?.classList?.remove?.("minimized");
     add("error", "window.unhandledrejection", reason?.message || reason, file, line, col);
   });
 

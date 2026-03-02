@@ -67,34 +67,26 @@ export async function taraAnabayiniz({ smmIds = [], abortSignal, onProgress = ()
     for (const smmId of smmIds) {
       if (abortSignal?.aborted) throw new Error('ABORTED');
       const url = `https://anabayiniz.com/orders?search=${encodeURIComponent(smmId)}`;
-      // SCOD: BU GEREKSİNİM UYGULANDI - run_id ve temel alanlar stage geçişinde korunur.
-      const progressBase = { source_url: url, smm_id: smmId, run_id: runId };
-      onProgress({ ...progressBase, stage: 'processing' });
+      onProgress({ source_url: url, smm_id: smmId, run_id: runId });
       // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
-      onProgress({ ...progressBase, stage: 'fetch' });
+      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'fetch' });
       let html = '';
       try {
         html = await fetchHtml(url, abortSignal);
       } catch (e) {
         const code = e?.code || 'FETCH_ERROR';
         const msg = e?.message || String(e);
-        errors.push({ ...progressBase, code, message: msg, stage: 'fetch' });
-        onProgress({ ...progressBase, stage: 'error', code, message: msg });
+        errors.push({ source_url: url, smm_id: smmId, code, message: msg, stage: 'fetch' });
+        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'error', code, message: msg });
         continue;
       }
       const rows = parseAnabayinizOrdersFromHtml(html, { source_url: url, smm_id: smmId });
-      onProgress({ ...progressBase, stage: 'parsed', rowsFound: rows.length });
+      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'parsed', rowsFound: rows.length });
       orders.push(...rows);
     }
   } catch (err) {
-    const msg = String(err?.message || err);
-    if (msg === 'ABORTED') {
-      errors.push({ code: 'ABORTED', message: 'İptal edildi', run_id: runId });
-      LogManager?.addLog({ level: 'warn', module: 'kaziyici_anabayiniz', action: 'tara', result: 'aborted', error: msg, run_id: runId });
-    } else {
-      errors.push(msg);
-      LogManager?.addLog({ level: 'error', module: 'kaziyici_anabayiniz', action: 'tara', result: 'error', error: msg, run_id: runId });
-    }
+    errors.push(String(err.message || err));
+    LogManager?.addLog({ level: 'error', module: 'kaziyici_anabayiniz', action: 'tara', result: 'error', error: err.message, run_id: runId });
   }
   return { orders, errors };
 }

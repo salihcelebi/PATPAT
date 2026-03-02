@@ -31,7 +31,11 @@
         "eslestirme_ve_sablonlar.js",
         "mesaj_gonderici.js",
         "kayit_ve_loglama.js",
-        "arayuz_uygulama.js"
+        "arayuz_uygulama.js",
+        "puter.md",
+        "puter_rules_runtime.js",
+        "puter_chat_demo.html",
+        "puter_chat_demo.js"
       ],
       "matches": [
         "<all_urls>"
