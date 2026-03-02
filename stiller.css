@@ -563,3 +563,45 @@ button,select,input,textarea{min-height:var(--ctl-h);}
   flex-wrap: wrap;
   align-items: center;
 }
+
+.scan-cta-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 6px 4px 10px;
+}
+
+#btnStartHero {
+  height: 36px;
+  border-radius: 18px;
+  border: 1px solid var(--line-color);
+  background: linear-gradient(180deg, #2f7bf0, #1a73e8);
+  color: #fff;
+  font-weight: 700;
+  padding: 0 14px;
+}
+
+.overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.stat-chip {
+  background: #191633;
+  border: 1px solid var(--line-color);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-chip .label {
+  color: var(--muted-color);
+  font-size: 12px;
+}
+
+.stat-chip strong {
+  font-size: 20px;
+}

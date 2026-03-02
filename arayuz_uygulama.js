@@ -12,6 +12,7 @@ import { taraAnabayiniz } from './kaziyici_anabayiniz_com.js';
 import { matchOrderAndSmm, generateMessage, checkPolicy } from './eslestirme_ve_sablonlar.js';
 import { sendMessage } from './mesaj_gonderici.js';
 import { recordStore, LogManager } from './kayit_ve_loglama.js';
+import { ensureRulesPackLoaded } from './puter_rules_runtime.js';
 
 // Uygulama durumu
 const state = {
@@ -23,6 +24,7 @@ const state = {
   dryRun: true,
   isRunning: false,
   abortController: null,
+  rulesPack: null,
 };
 
 // FIX5: tarama durumu (gerçek zamanlı UI)
@@ -97,6 +99,7 @@ function initRefs() {
   refs.autoSendToggle = document.getElementById('autoSendToggle');
   refs.dryRunToggle = document.getElementById('dryRunToggle');
   refs.btnStart = document.getElementById('btnStart');
+  refs.btnStartHero = document.getElementById('btnStartHero');
   refs.btnStop = document.getElementById('btnStop');
   refs.btnExportCsv = document.getElementById('btnExportCsv');
   refs.btnExportJson = document.getElementById('btnExportJson');
@@ -116,7 +119,7 @@ function initRefs() {
   refs.tableTitle = document.getElementById('tableTitle');
   refs.templateSelect = document.getElementById('templateSelect');
   refs.btnGenerateTemplate = document.getElementById('btnGenerateTemplate');
-  refs.btnSendMessage = document.getElementById('btnSendMessage');
+  refs.btnSendMessage = document.getElementById('btnSendMessage') || document.getElementById('btnSendReply');
   refs.btnCopyMessage = document.getElementById('btnCopyMessage');
   refs.messagePreview = document.getElementById('messagePreview');
   refs.policyWarning = document.getElementById('policyWarning');
@@ -141,6 +144,10 @@ function initRefs() {
   refs.logsEmpty = document.getElementById('logsEmpty');
   refs.btnRetry = document.getElementById('btnRetry');
   refs.btnManual = document.getElementById('btnManual');
+  refs.btnPuterChatDemo = document.getElementById('btnPuterChatDemo');
+  refs.statTotalOrders = document.getElementById('statTotalOrders');
+  refs.statProblematic = document.getElementById('statProblematic');
+  refs.statReturnprocess = document.getElementById('statReturnprocess');
 }
 
 // UI state güncelleme fonksiyonları
@@ -166,6 +173,16 @@ function rowMatchesQuery(row, q) {
     row.message_url
   ].filter(Boolean).join(' ').toLowerCase();
   return hay.includes(qq);
+}
+
+function renderOverviewStats() {
+  const rows = recordStore.toArray('orders');
+  const total = rows.length;
+  const problematic = rows.filter((r) => String(r.status || '').toLowerCase() === 'problematic').length;
+  const returns = rows.filter((r) => String(r.status || '').toLowerCase() === 'returnprocess').length;
+  if (refs.statTotalOrders) refs.statTotalOrders.textContent = String(total);
+  if (refs.statProblematic) refs.statProblematic.textContent = String(problematic);
+  if (refs.statReturnprocess) refs.statReturnprocess.textContent = String(returns);
 }
 
 function renderOrdersTable() {
@@ -226,6 +243,7 @@ function renderOrdersTable() {
     refs.ordersBody.appendChild(tr);
   });
   updateTableTitle(rows.length);
+  renderOverviewStats();
 }
 
 // Seçili satır state
@@ -242,7 +260,7 @@ function selectOrderRow(orderId) {
   fillSmmDetails(orderRow, smmRow);
   // mesajı otomatik üret
   const type = refs.templateSelect.value;
-  const message = smmRow ? generateMessage(orderRow, smmRow, type) : '';
+  const message = smmRow ? generateMessage(orderRow, smmRow, type, state.rulesPack) : '';
   updateMessagePreview(message);
 }
 
@@ -422,6 +440,7 @@ function attachEvents() {
     updateMessagePreview(refs.messagePreview.value);
   });
   refs.btnStart.addEventListener('click', startScan);
+  if (refs.btnStartHero) refs.btnStartHero.addEventListener('click', startScan);
   refs.btnStop.addEventListener('click', stopScan);
   refs.btnExportCsv.addEventListener('click', exportCsv);
   refs.btnExportJson.addEventListener('click', exportJsonl);
@@ -430,7 +449,7 @@ function attachEvents() {
     if (selectedOrderId) {
       const orderRow = recordStore.orders.get(String(selectedOrderId));
       const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
-      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value) : '';
+      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value, state.rulesPack) : '';
       updateMessagePreview(message);
     }
   });
@@ -438,7 +457,7 @@ function attachEvents() {
     if (selectedOrderId) {
       const orderRow = recordStore.orders.get(String(selectedOrderId));
       const smmRow = orderRow?.smm_id ? recordStore.smmOrders.get(String(orderRow.smm_id)) : null;
-      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value) : '';
+      const message = smmRow ? generateMessage(orderRow, smmRow, refs.templateSelect.value, state.rulesPack) : '';
       updateMessagePreview(message);
     }
   });
@@ -497,6 +516,13 @@ function attachEvents() {
     LogManager.addLog({ level: 'info', module: 'ui', action: 'manual', result: 'clicked' });
     renderLogs();
   });
+
+  if (refs.btnPuterChatDemo) {
+    refs.btnPuterChatDemo.addEventListener('click', () => {
+      const url = chrome.runtime.getURL('puter_chat_demo.html');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
+  }
 }
 
 // Taramayı başlat
@@ -505,6 +531,7 @@ async function startScan() {
   state.isRunning = true;
   refs.btnStart.disabled = true;
   refs.btnStop.disabled = false;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = true;
   state.abortController = new AbortController();
   LogManager.addLog({ level: 'info', module: 'ui', action: 'start', result: 'start' });
   renderLogs();
@@ -576,6 +603,7 @@ async function startScan() {
   state.isRunning = false;
   refs.btnStart.disabled = false;
   refs.btnStop.disabled = true;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = false;
 }
 
 function stopScan() {
@@ -604,18 +632,34 @@ function stopScan() {
   }
   refs.btnStart.disabled = false;
   refs.btnStop.disabled = true;
+  if (refs.btnStartHero) refs.btnStartHero.disabled = false;
 }
 
 // Başlatıcı
-function init() {
+async function init() {
   initRefs();
   attachEvents();
-  // Logları oturumda sakla ve gerçek zamanlı güncelle
-  LogManager.init().then(() => {
-    renderLogs();
-  });
+
+  await LogManager.init();
+  try {
+    state.rulesPack = await ensureRulesPackLoaded();
+    LogManager.addLog({
+      level: 'info',
+      module: 'ui',
+      action: 'PUTER_RULES_LOADED',
+      result: JSON.stringify({ rules_version: state.rulesPack?.rules_version, md_hash: state.rulesPack?.md_hash }),
+    });
+  } catch (e) {
+    state.rulesPack = null;
+    LogManager.addLog({
+      level: 'warn',
+      module: 'ui',
+      action: 'PUTER_RULES_LOAD_FAIL',
+      error: String(e?.message || e),
+    });
+  }
+
   LogManager.subscribe(() => {
-    // çok sık çağrı olursa bile basit render yeterli
     renderLogs();
   });
   renderOrdersTable();
@@ -623,12 +667,9 @@ function init() {
 }
 
 if (document.readyState === 'loading') {
-  if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
-
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+  });
 } else {
   init();
 }
