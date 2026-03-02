@@ -41,16 +41,5 @@
   "background": {
     "service_worker": "background.js"
   },
-  "minimum_chrome_version": "114",
-  "content_scripts": [
-    {
-      "matches": [
-        "https://hesap.com.tr/*"
-      ],
-      "js": [
-        "content_script_hesap.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ]
+  "minimum_chrome_version": "114"
 }
