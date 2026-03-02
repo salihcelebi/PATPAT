@@ -1,94 +1,52 @@
-/* =========================
-FILE: stiller.css (REVİZYON EKLERİ)
-GEREKSİNİM: PILL UI + LOG COLLAPSE + TAB ALANI + BOŞLUK STANDARDI
-NOT: Mevcut koyu tema korunur; sadece eksik sınıflar eklenir.
-========================= */
-
-/* --- EK: ÜST BAR SATIRLARI (2 SATIRLI GRID/FLEX) --- */
-.top-row {
-  /* GEREKSİNİM: ÇAKIŞMA/TAŞMA AZALSIN, SATIRLAR NET OLSUN */
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  width: 100%;
-  margin-bottom: 8px;
+:root {
+  --bg: #111318;
+  --surface: #1b1f27;
+  --surface-2: #232936;
+  --line-color: #3a4255;
+  --text-color: #eef2ff;
+  --muted-color: #b3bdd3;
+  --primary: #8ab4f8;
+  --warn-color: #f9ab00;
+  --error-color: #ff6d6d;
 }
-.top-row--actions { margin-bottom: 0; }
-
-/* --- EK: PILL UI --- */
-.status-pills {
-  /* GEREKSİNİM: NATIVE MULTI SELECT YERİNE PILL GÖRÜNÜM */
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-  max-width: 520px;
-}
-.status-pill-btn {
-  /* GEREKSİNİM: BUTON BOYUTLARINI STANDARDİZE ET */
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--line-color);
-  background: #191633;
-  color: var(--text-color);
-  cursor: pointer;
-  font-size: 12px;
-}
-.status-pill-btn.active {
-  /* GEREKSİNİM: AKTİF/ PASİF NET */
-  border-color: var(--success-color);
-  background: rgba(55, 178, 77, 0.25);
-}
-
-/* --- EK: TAB BAR (STICKY) --- */
-.g-tabs {
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--line-color);
-  padding: 6px 10px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--card-color);
-}
-.tab-btn {
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid var(--line-color);
-  background: #191633;
-  color: var(--text-color);
-  cursor: pointer;
-  font-weight: 600;
-}
-.tab-btn.active {
-  border-color: var(--success-color);
-  background: rgba(55, 178, 77, 0.25);
-}
-.tabs-spacer { flex: 1; }
-
-/* --- EK: LOG COLLAPSE (grid-layout.logs-closed) --- */
-#app.grid-layout.logs-closed .log-panel {
-  /* GEREKSİNİM: LOG PANEL KAPANINCA KÜÇÜLSÜN */
-  max-height: 44px;
-}
-#app.grid-layout.logs-closed .log-table-wrap,
-#app.grid-layout.logs-closed .log-actions {
-  display: none;
-}
-
-/* --- EK: BOŞ DURUM HÜCRESİ (tbody içine konmasın, ordersEmpty kullanılsın) --- */
-#ordersBody .empty-state { display: none; } /* GEREKSİNİM: ÇAKIŞMA ÖNLE */
-
-/* --- EK: MOBİL DOKUNMA HEDEFİ --- */
-@media (max-width: 900px) {
-  .top-bar select,
-  .top-bar input[type="text"],
-  .top-bar input[type="number"],
-  .top-bar button,
-  .status-pill-btn,
-  .tab-btn {
-    height: 44px; /* GEREKSİNİM: 44PX */
-  }
-}
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 Inter, Roboto, Arial, sans-serif; color: var(--text-color); background: var(--bg); }
+.hidden { display: none !important; }
+.grid-layout { display: grid; grid-template-columns: 1.45fr 1fr; grid-template-rows: auto 1fr auto; gap: 12px; padding: 12px; min-height: 100vh; }
+.card { background: var(--surface); border: 1px solid var(--line-color); border-radius: 16px; padding: 12px; box-shadow: 0 6px 22px rgba(0,0,0,.28); }
+.top-bar,.log-panel { grid-column: 1 / -1; }
+.top-row,.template-actions,.log-toolbar,.log-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bar-item { display: flex; align-items: center; gap: 8px; min-width: 190px; }
+label { color: var(--muted-color); font-size: 12px; }
+input,select,textarea,button { background: var(--surface-2); color: var(--text-color); border: 1px solid var(--line-color); border-radius: 10px; padding: 8px 10px; }
+input:focus,select:focus,textarea:focus,button:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+button:hover { filter: brightness(1.08); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.status-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.status-pill-btn.active,.tab-btn.active { border-color: var(--primary); background: rgba(138,180,248,.16); }
+.scan-progress { margin-top: 8px; height: 8px; border-radius: 999px; overflow: hidden; background: #2a3040; }
+.scan-progress-fill { height: 100%; background: linear-gradient(90deg, #5f9cff, #7ccf8b); }
+.g-tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+.table-wrap,.log-table-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--line-color); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th,td { padding: 9px; border-bottom: 1px solid #2d3444; text-align: left; vertical-align: top; word-break: break-word; }
+tr.selected { outline: 2px solid var(--primary); background: rgba(138,180,248,.12); }
+#messagePreview,#aiDraftText { width: 100%; white-space: pre-wrap; line-height: 1.55; }
+#aiDraftText { min-height: 130px; max-height: 260px; overflow: auto; font-size: 13px; }
+.policy-warning { border: 1px solid var(--warn-color); color: #ffd777; background: rgba(249,171,0,.12); padding: 8px; border-radius: 10px; margin: 8px 0; }
+.smm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.smm-grid > div { background: #202635; border: 1px solid var(--line-color); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.ai-mode-card { border: 1px solid var(--line-color); border-radius: 14px; padding: 10px; margin-bottom: 10px; background: #1e2432; }
+.ai-mode-options { display: grid; gap: 6px; margin: 8px 0; }
+.ai-mode-options label { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #36405a; border-radius: 10px; color: var(--text-color); }
+.ai-mode-options input:checked + span { font-weight: 700; }
+/* SCOD: BU GEREKSİNİM UYGULANDI - Otopilot badge yüksek kontrastla tasarlandı. */
+.ai-badge { display: inline-flex; margin-bottom: 8px; padding: 5px 10px; border-radius: 999px; background: #ffd84d; color: #222; font-weight: 800; border: 1px solid #f6b300; }
+/* SCOD: BU GEREKSİNİM UYGULANDI - Yönetici uyarısı butonu kırmızı durum/hover/focus stilleri verildi. */
+#btnAdminAlerts { background: #c62828; border-color: #ef5350; color: #fff; }
+#btnAdminAlerts:hover { background: #d63232; }
+#btnAdminAlerts:active { background: #a82020; }
+#btnAdminAlerts:focus { outline-color: #ff8a80; }
+#aiAdminNote { display: block; margin-top: 8px; padding: 8px; background: rgba(255,109,109,.12); border: 1px solid var(--error-color); border-radius: 8px; color: #ffd6d6; }
+.grid-layout.logs-closed .log-table-wrap,.grid-layout.logs-closed .log-actions,.grid-layout.logs-closed .log-toolbar { display: none; }
+@media (max-width: 1100px) { .grid-layout { grid-template-columns: 1fr; } .smm-grid { grid-template-columns: 1fr; } }

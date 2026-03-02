@@ -139,24 +139,25 @@ export async function taraHesap({ mode = 'analysis', statusFilters = [], pageLim
       for (let page = 1; page <= maxPages; page++) {
         if (abortSignal?.aborted) throw new Error('ABORTED');
         const url = page > 1 ? buildPagedUrl(baseUrl, page) : baseUrl;
-        // progress callback
-        onProgress({ source_url: url, status, page_no: page, run_id: runId });
+        // SCOD: BU GEREKSİNİM UYGULANDI - progress payload tüm stage'lerde aynı kimlik alanlarını korur.
+        const progressBase = { source_url: url, status, page_no: page, run_id: runId };
+        onProgress({ ...progressBase, stage: 'processing' });
         // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
-        onProgress({ source_url: url, status, page_no: page, stage: 'fetch' });
+        onProgress({ ...progressBase, stage: 'fetch' });
         let html = '';
         try {
           html = await fetchHtml(url, abortSignal);
         } catch (e) {
           const code = e?.code || 'FETCH_ERROR';
           const msg = e?.message || String(e);
-          errors.push({ source_url: url, status, page_no: page, code, message: msg, stage: 'fetch' });
-          onProgress({ source_url: url, status, page_no: page, stage: 'error', code, message: msg });
+          errors.push({ ...progressBase, code, message: msg, stage: 'fetch' });
+          onProgress({ ...progressBase, stage: 'error', code, message: msg });
           continue;
         }
         let pageOrders = parseHesapOrdersFromHtml(html, { status, source_url: url, page_no: page });
         const q = normalizeQuery(searchQuery);
         if (q) pageOrders = pageOrders.filter(o => orderMatchesQuery(o, q));
-        onProgress({ source_url: url, status, page_no: page, stage: 'parsed', rowsFound: pageOrders.length, query: q });
+        onProgress({ ...progressBase, stage: 'parsed', rowsFound: pageOrders.length, query: q });
         // erken durdurma: şikayet modunda ilk sayfa boşsa stop
         if (mode === 'complaint' && page === 1 && pageOrders.length === 0) {
           break;
@@ -167,8 +168,14 @@ export async function taraHesap({ mode = 'analysis', statusFilters = [], pageLim
       }
     }
   } catch (err) {
-    errors.push(String(err.message || err));
-    LogManager?.addLog({ level: 'error', module: 'kaziyici_hesap', action: 'tarama', result: 'error', error: err.message, run_id: runId });
+    const msg = String(err?.message || err);
+    if (msg === 'ABORTED') {
+      errors.push({ code: 'ABORTED', message: 'İptal edildi', run_id: runId });
+      LogManager?.addLog({ level: 'warn', module: 'kaziyici_hesap', action: 'tarama', result: 'aborted', error: msg, run_id: runId });
+    } else {
+      errors.push(msg);
+      LogManager?.addLog({ level: 'error', module: 'kaziyici_hesap', action: 'tarama', result: 'error', error: msg, run_id: runId });
+    }
   }
   return { orders, summary: { count: orders.length }, errors };
 }
