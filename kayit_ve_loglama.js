@@ -164,9 +164,12 @@ export class LogManager {
       file: entry.file || s.file,
       line: entry.line || s.line,
       col: entry.col || s.col,
+      source_file: entry.source_file || s.file || '',
+      source_line: entry.source_line || s.line || 0,
       url: entry.url || s.url,
       stack: entry.stack || (err.stack || ''),
       meta: entry.meta ?? null,
+      context: entry.context || {},
     };
     LogManager.logs.push(row);
     if (LogManager.logs.length > LogManager._MAX) LogManager.logs.splice(0, LogManager.logs.length - LogManager._MAX);

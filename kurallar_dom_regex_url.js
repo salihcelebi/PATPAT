@@ -103,7 +103,8 @@ export class NotificationRules {
 
 // MessagesNavRules: mesajlar sayfa linki
 export class MessagesNavRules {
-  static MESSAGES_LINK = 'a[href="https://hesap.com.tr/p/mesajlar"]';
+  static MESSAGES_PAGE_URL = 'https://hesap.com.tr/p/mesajlar';
+  static MESSAGES_LINK = `a[href="${this.MESSAGES_PAGE_URL}"]`;
   static MESSAGE_COUNT_BADGE = '#messagecount';
 }
 
@@ -448,4 +449,14 @@ export class HesapProfileUrlRules {
     const u = this.sanitizeUsername(username);
     return u ? `${this.BASE}/u/${u}` : '';
   }
+}
+
+
+// SCOD: BU GEREKSİNİM UYGULANDI - mesaj okuma selector/rule set tek kaynakta toplandı.
+export class MessageReadRules {
+  static THREAD_LIST_ITEM_SELECTOR = '.message-list a, .threads a, a[href*="/p/mesaj"]';
+  static MESSAGE_ROW_SELECTOR = '.message-item, .chat-message, .msg-item, .conversation .row';
+  static MESSAGE_TEXT_SELECTOR = '.message-text, .text, .content, p';
+  static MESSAGE_AUTHOR_SELECTOR = '.author, .name, .sender, [data-author]';
+  static MESSAGE_TIME_SELECTOR = 'time, .time, .date, .timestamp';
 }
