@@ -1,346 +1,92 @@
-<!-- =========================
-FILE: arayuz.html
-GEREKSİNİM: MODÜL SCRIPT'LERİ GERİ DÖNSÜN (TEK DOSYA KIRILMASI ÇÖZÜLSÜN)
-GEREKSİNİM: ID/SELECTOR UYUMLULUĞU TAM (arayuz_uygulama.js initRefs ile aynı)
-GEREKSİNİM: PILL UI + HIDDEN SELECT SENKRON + BUBBLES CHANGE
-GEREKSİNİM: LOG PANEL COLLAPSE (logToggle + logs-closed class)
-NOT: GÖRÜNÜMÜ KORU: stiller.css kullanılmaya devam ediyor
-========================= -->
 <!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sipariş ve Şikayet Yönetimi</title>
-
-  <!-- GEREKSİNİM: MEVCUT PROJE DOSYASI AYNEN KORUNUR -->
+  <title>PATPAT Arayüz</title>
   <link rel="stylesheet" href="stiller.css" />
 </head>
-
 <body data-page="teksekme">
   <div id="app" class="grid-layout">
-    <!-- =========================
-      HEADER
-      GEREKSİNİM: ID'LER KORUNUR (modeSelect, statusSelect, searchInput, pageLimitInput, autoSendToggle, dryRunToggle,
-      btnStart, btnStop, btnExportCsv, btnExportJson)
-    ========================= -->
-    <header id="topBar" class="top-bar">
-
-      <!-- SATIR-1: FİLTRELER -->
+    <header id="topBar" class="top-bar card">
       <div class="top-row top-row--filters">
-        <div class="bar-item">
-          <label for="modeSelect">Mod:</label>
-          <select id="modeSelect">
-            <option value="analysis">Analiz Modu</option>
-            <option value="complaint">Şikayet Modu</option>
-          </select>
-        </div>
-
-        <!-- PILL UI (GÖRSEL) -->
+        <div class="bar-item"><label for="modeSelect">Mod</label><select id="modeSelect"><option value="analysis">Analiz</option><option value="complaint">Şikayet</option></select></div>
         <div class="bar-item bar-item--status">
-          <label>Durum:</label>
-
-          <!--
-            GEREKSİNİM: PILL → HIDDEN SELECT SENKRON (KABLOLAMA BOZMA)
-            - arayuz_uygulama.js statusSelect değişimini dinliyor.
-            - Pill butonları hidden select’i günceller ve change event’ini BUBBLES ile fırlatır.
-          -->
-          <div id="statusPillsContainer" class="status-pills" aria-label="Durum filtreleri">
+          <label>Durum</label>
+          <div id="statusPillsContainer" class="status-pills">
             <button type="button" class="status-pill-btn" data-value="pending">Beklemede</button>
             <button type="button" class="status-pill-btn" data-value="processing">İşleniyor</button>
             <button type="button" class="status-pill-btn" data-value="completed">Tamamlandı</button>
             <button type="button" class="status-pill-btn" data-value="cancelled">İptal</button>
-            <button type="button" class="status-pill-btn active" data-value="returnprocess">İade Süreci</button>
+            <button type="button" class="status-pill-btn active" data-value="returnprocess">İade</button>
             <button type="button" class="status-pill-btn active" data-value="problematic">Sorunlu</button>
           </div>
-
-          <!--
-            GEREKSİNİM: ARKA PLAN KABLOLAMASI (ID KORUNUR)
-            - JS logic bozulmasın diye select DOM’da VAR.
-          -->
-          <select id="statusSelect" multiple class="hidden">
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="returnprocess" selected>Returnprocess</option>
-            <option value="problematic" selected>Problematic</option>
-          </select>
+          <select id="statusSelect" multiple class="hidden"><option value="pending">pending</option><option value="processing">processing</option><option value="completed">completed</option><option value="cancelled">cancelled</option><option value="returnprocess" selected>returnprocess</option><option value="problematic" selected>problematic</option></select>
         </div>
-
-        <div class="bar-item">
-          <label for="searchInput">Arama:</label>
-          <input id="searchInput" type="text" placeholder="Sipariş ID / Müşteri / SMM ID" />
-        </div>
-
-        <div class="bar-item">
-          <!--
-            GEREKSİNİM: MIN/MAX/PLACEHOLDER
-            - pageLimitInput parseInt ile okunuyor; min=1 ile “0” hatası engellenir.
-          -->
-          <label for="pageLimitInput">Sayfa Limiti:</label>
-          <input id="pageLimitInput" type="number" min="1" max="999" step="1" value="1" placeholder="1" />
-        </div>
+        <div class="bar-item"><label for="searchInput">Arama</label><input id="searchInput" type="text" placeholder="Sipariş / Müşteri / SMM" /></div>
+        <div class="bar-item"><label for="pageLimitInput">Sayfa limiti</label><input id="pageLimitInput" type="number" min="1" max="999" value="1" /></div>
       </div>
-
-      <!-- SATIR-2: AKSİYONLAR + GELİŞMİŞ -->
       <div class="top-row top-row--actions">
-        <div class="bar-item actions">
-          <!-- GEREKSİNİM: ANA CTA -->
-          <button id="btnStart">Taramayı Başlat</button>
-          <button id="btnStop" disabled>Durdur</button>
-          <button id="btnExportCsv">CSV</button>
-          <button id="btnExportJson">JSONL</button>
-        </div>
-
-        <!--
-          GEREKSİNİM: GELİŞMİŞ (DETAYLAR PANELİ)
-          - dryRunToggle ve autoSendToggle ID’leri KORUNUR.
-          - thread seçim alanı korunur.
-        -->
-        <details id="advancedControls" class="advanced">
-          <summary class="advanced-summary">Gelişmiş</summary>
-
-          <div class="advanced-inner">
-            <section class="g-card">
-              <div class="g-card__header">
-                <h4 class="g-card__title">Ayarlar</h4>
-              </div>
-              <div class="g-card__content">
-                <div class="bar-item">
-                  <label for="autoSendToggle">Otomatik Gönder:</label>
-                  <input id="autoSendToggle" type="checkbox" />
-                </div>
-
-                <div class="bar-item">
-                  <label for="dryRunToggle">Simülasyon (Dry Run):</label>
-                  <input id="dryRunToggle" type="checkbox" checked />
-                </div>
-
-                <!--
-                  GEREKSİNİM: HIZ SÜRÜGÜSÜ (UI)
-                  - arayuz_uygulama.js bunu kullanmıyor olsa bile DOM’da hazır tutulur.
-                -->
-                <div class="bar-item">
-                  <label for="speedXRange">Hız:</label>
-                  <input id="speedXRange" type="range" min="1" max="10" value="3" />
-                  <span id="speedXLabel" class="pill">3X</span>
-                </div>
-
-                <!--
-                  GEREKSİNİM: SON N MESAJ alanı (ileride/opsiyonel)
-                  - ESNEK: Mevcut JS bunu beklemese bile kablolamayı bozmaz.
-                -->
-                <div class="bar-item">
-                  <label for="lastNMessages">Son N Mesaj:</label>
-                  <input id="lastNMessages" type="number" min="1" max="200" value="10" placeholder="10" />
-                </div>
-
-                <!-- Opsiyonel: Mode -->
-                <div class="bar-item">
-                  <label for="speedModeSelect">Mod:</label>
-                  <select id="speedModeSelect">
-                    <option value="humanize">HUMANIZE</option>
-                    <option value="bot">BOT</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section class="g-card">
-              <div class="g-card__header">
-                <h4 class="g-card__title">Thread</h4>
-              </div>
-              <div class="g-card__content">
-                <button id="btnThreadSelect" type="button">THREAD SEÇ</button>
-                <span id="threadSelectStatus" class="pill">SEÇİLMEDİ</span>
-
-                <!--
-                  GEREKSİNİM: btnFetchMessages (talepte vardı)
-                  - Mevcut JS beklemese bile DOM’da bulunur (ileri uyum).
-                -->
-                <button id="btnFetchMessages" type="button">MESAJLARI ÇEK</button>
-              </div>
-            </section>
-          </div>
-        </details>
+        <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
+        <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Simülasyon</label><input id="dryRunToggle" type="checkbox" checked /></div>
       </div>
-
-      <!--
-        GEREKSİNİM: DURUM ALANI SABİT
-        - scanStateBadge, scanProgressFill vs ID'leri korunur (ileride progress event’leri için).
-      -->
       <section id="scanStatus" class="scan-status">
-        <div class="scan-top">
-          <span id="scanStateBadge" class="pill">Hazır</span>
-          <span id="scanCurrentUrl">-</span>
-        </div>
-
-        <div class="scan-progress">
-          <div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div>
-        </div>
-
-        <div class="scan-metrics">
-          <span id="scanPercent">0%</span>
-          <span>·</span>
-          <span id="scanEta">-</span>
-          <span>·</span>
-          <span><span id="scanCount">0</span>/<span id="scanTotal">0</span></span>
-        </div>
-
-        <div id="scanSummary" class="hidden"></div>
+        <div class="scan-top"><span id="scanStateBadge" class="pill">Hazır</span><span id="scanCurrentUrl">-</span></div>
+        <div class="scan-progress"><div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div></div>
+        <div class="scan-metrics"><span id="scanPercent">0%</span><span>·</span><span id="scanEta">-</span><span>·</span><span id="scanCount">0</span>/<span id="scanTotal">0</span></div>
+        <div id="scanSummary" class="scan-summary"></div>
         <div id="scanFailures" class="hidden"></div>
       </section>
     </header>
 
-    <!-- =========================
-      MAIN
-      GEREKSİNİM: tableTitle, ordersBody, ordersEmpty korunur
-      GEREKSİNİM: tabLogs alias eklendi (tabLogsMobile kalsa bile)
-    ========================= -->
-    <main id="mainArea" class="main-area">
+    <main id="mainArea" class="main-area card">
       <section class="table-section">
-        <div class="tabs-bar g-tabs">
-          <button class="tab-btn active" id="tabTable" type="button">Tablo</button>
-
-          <!-- GEREKSİNİM: ID UYUŞMAZLIĞI ÇÖZÜMÜ (tabLogs + tabLogsMobile birlikte) -->
-          <button class="tab-btn" id="tabLogs" type="button">Loglar</button>
-          <button class="tab-btn hidden" id="tabLogsMobile" type="button">Loglar</button>
-
-          <div class="tabs-spacer"></div>
-          <button class="tab-btn" id="tabToggleDetails" type="button">Detay</button>
-        </div>
-
-        <div class="table-header">
-          <h3 id="tableTitle">Toplam 0 satır.</h3>
-        </div>
-
-        <div class="table-wrap">
-          <table id="ordersTable">
-            <thead>
-              <tr>
-                <th>🆔 Sipariş ID</th>
-                <th>🏷️ Durum</th>
-                <th>🧷 İlan URL</th>
-                <th>👤 Müşteri</th>
-                <th>🔢 SMM ID</th>
-                <th>💬 Mesaj Yolu</th>
-              </tr>
-            </thead>
-            <tbody id="ordersBody"></tbody>
-          </table>
-
-          <!--
-            GEREKSİNİM: EMPTY STATE DOM’DA VAR (arayuz_uygulama.js refs.ordersEmpty bekliyor)
-            - Dinamik tablo render ile çakışmasın diye ayrı div olarak tutulur.
-          -->
-          <div id="ordersEmpty" class="empty-state">Henüz veri yok.</div>
-        </div>
+        <div class="tabs-bar g-tabs"><button class="tab-btn active" id="tabTable" type="button">Tablo</button><button class="tab-btn" id="tabLogs" type="button">Loglar</button><div class="tabs-spacer"></div></div>
+        <div class="table-header"><h3 id="tableTitle">Toplam 0 satır.</h3></div>
+        <div class="table-wrap"><table id="ordersTable"><thead><tr><th>🆔 Sipariş ID</th><th>🏷️ Durum</th><th>🧷 İlan URL</th><th>👤 Müşteri</th><th>🔢 SMM ID</th><th>💬 Mesaj Yolu</th></tr></thead><tbody id="ordersBody"></tbody></table><div id="ordersEmpty" class="empty-state">Henüz veri yok.</div></div>
       </section>
     </main>
 
-    <!-- =========================
-      SIDE PANEL
-      GEREKSİNİM: smmDetails ve alt ID’ler TAM
-      GEREKSİNİM: messagePreview + policyWarning + btnSendMessage + btnCopyMessage + btnGenerateTemplate + templateSelect
-      NOT: btnOpenMessagePage UI’da görünmese bile hidden olarak tutulur (kablolama korunur)
-    ========================= -->
-    <aside id="sidePanel" class="side-panel">
-      <div class="detail-card">
-        <h4>SMM Detay</h4>
-        <div id="smmDetails">
-          <div><strong>SMM Sipariş ID:</strong> <span id="smm_order_id">-</span></div>
-          <div><strong>Tarih:</strong> <span id="smm_date">-</span></div>
-          <div><strong>Link:</strong> <a id="smm_link" href="#" target="_blank" rel="noreferrer">-</a></div>
-          <div><strong>Başlangıç:</strong> <span id="smm_start">-</span></div>
-          <div><strong>Miktar:</strong> <span id="smm_quantity">-</span></div>
-          <div><strong>Servis:</strong> <span id="smm_service">-</span></div>
-          <div><strong>Durum:</strong> <span id="smm_status">-</span></div>
-          <div><strong>Kalan:</strong> <span id="smm_remains">-</span></div>
+    <aside id="sidePanel" class="side-panel card">
+      <section class="ai-mode-card">
+        <!-- SCOD: BU GEREKSİNİM UYGULANDI - AI modu ve kontroller tek kartta toplandı. -->
+        <h4>AI Modu</h4>
+        <div class="ai-mode-options">
+          <label><input type="radio" name="aiMode" id="aiModeTemplate" value="TEMPLATE" checked /> TASLAK HAZIRLA (ADMIN GÖNDERİR)</label>
+          <label><input type="radio" name="aiMode" id="aiModeManual" value="MANUAL" /> MANUEL (ADMIN DÜZENLER)</label>
+          <label><input type="radio" name="aiMode" id="aiModeAutopilot" value="AUTOPILOT" /> OTOPİLOT (OTOMATİK GÖNDER)</label>
         </div>
-      </div>
-
-      <div class="template-card">
-        <h4>Mesaj Önizleme</h4>
-
-        <textarea id="messagePreview" readonly rows="8" placeholder="Şablon burada görünecek"></textarea>
-
-        <!-- GEREKSİNİM: policyWarning ID KORUNUR -->
-        <div id="policyWarning" class="policy-warning hidden">
-          Mesaj politikasına aykırı ifadeler içeriyor.
-        </div>
-
+        <span id="aiAutopilotBadge" class="ai-badge hidden">OTOPİLOT AKTİF</span>
         <div class="template-actions">
-          <select id="templateSelect">
-            <option value="auto">Otomatik Bilgilendirme</option>
-            <option value="complaint">Şikayet Yanıtı</option>
-          </select>
-
-          <button id="btnGenerateTemplate">Şablon Oluştur</button>
-          <button id="btnSendMessage">Gönder</button>
-          <button id="btnCopyMessage">Kopyala</button>
+          <button id="btnReadCustomerMessages" type="button" disabled>Mesajları Oku</button>
+          <button id="btnAiDraft" type="button" disabled>AI Taslak Oluştur</button>
+          <button id="btnAdminAlerts" class="hidden" type="button">Yönetici Uyarıları</button>
         </div>
+        <textarea id="aiDraftText" rows="7" readonly placeholder="AI çıktısı burada."></textarea>
+        <small id="aiAdminNote" class="hidden"></small>
+      </section>
 
-        <!--
-          GEREKSİNİM: Eksik öğeler DOM’da kalsın (kablolama bozulmasın)
-          - UI’da göstermek istemiyorsan hidden tut.
-        -->
-        <button id="btnOpenMessagePage" class="hidden" type="button">Mesaj Sayfasını Aç</button>
+      <section class="detail-card"><h4>SMM Detayları</h4><div id="smmDetails" class="smm-grid">
+        <div><strong>SMM Sipariş ID</strong><span id="smm_order_id">-</span></div><div><strong>Tarih</strong><span id="smm_date">-</span></div><div><strong>Link</strong><a id="smm_link" href="#" target="_blank" rel="noreferrer">-</a></div><div><strong>Başlangıç</strong><span id="smm_start">-</span></div><div><strong>Miktar</strong><span id="smm_quantity">-</span></div><div><strong>Servis</strong><span id="smm_service">-</span></div><div><strong>Durum</strong><span id="smm_status">-</span></div><div><strong>Kalan</strong><span id="smm_remains">-</span></div>
+      </div><span id="smmInfoFallback" class="muted">Bir satır seçerek detayları görebilirsin.</span></section>
+
+      <section class="template-card">
+        <h4>Mesaj Önizleme</h4>
+        <textarea id="messagePreview" readonly rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
+        <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
+        <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
         <textarea id="clipboardFallback" class="hidden" readonly></textarea>
-      </div>
+      </section>
     </aside>
 
-    <!-- =========================
-      LOG PANEL
-      GEREKSİNİM: logLevelFilter, logsBody, logsEmpty, btnRetry, btnManual
-      GEREKSİNİM: logToggle ile logs-closed class (CSS grid satırı daralsın)
-      GEREKSİNİM: stopPropagation (header içindeki kontrol tıklanınca kapanmasın)
-    ========================= -->
-    <footer id="logPanel" class="log-panel">
-      <div class="log-header" id="logToggle">
-        <h4>Loglar</h4>
-
-        <!-- GEREKSİNİM: LOG SEVİYE FİLTRE ID KORUNUR -->
-        <select id="logLevelFilter" data-stop-toggle="1">
-          <option value="">Seviye (hepsi)</option>
-          <option value="info">Bilgi</option>
-          <option value="warn">Uyarı</option>
-          <option value="error">Hata</option>
-        </select>
-
-        <!-- Görsel durum butonu (toggle) -->
-        <button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button>
-      </div>
-
-      <div class="log-table-wrap">
-        <table id="logsTable">
-          <thead>
-            <tr>
-              <th>Zaman</th>
-              <th>Seviye</th>
-              <th>Modül</th>
-              <th>Aksiyon</th>
-              <th>Sonuç</th>
-              <th>Hata</th>
-            </tr>
-          </thead>
-          <tbody id="logsBody"></tbody>
-        </table>
-
-        <div id="logsEmpty" class="empty-state">Henüz log yok.</div>
-      </div>
-
-      <div class="log-actions">
-        <button id="btnRetry">Yeniden Dene</button>
-        <button id="btnManual">Manuel Devret</button>
-      </div>
+    <footer id="logPanel" class="log-panel card">
+      <div class="log-header" id="logToggle"><h4>Loglar</h4><button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button></div>
+      <div class="log-toolbar" data-stop-toggle="1"><input id="logSearchInput" type="text" placeholder="Log ara" /><select id="logLevelFilter"><option value="">Seviye (hepsi)</option><option value="info">Bilgi</option><option value="warn">Uyarı</option><option value="error">Hata</option></select><select id="logPageFilter"><option value="">Sayfa (hepsi)</option><option value="teksekme">teksekme</option></select><select id="logSourceFilter"><option value="">İşlem/Kaynak (hepsi)</option><option value="ui">UI</option><option value="ai">AI</option><option value="mesaj_gonderici">Mesaj</option></select></div>
+      <div class="log-table-wrap"><table id="logsTable"><thead><tr><th>Seç</th><th>Zaman</th><th>Seviye</th><th>Sayfa</th><th>Kaynak</th><th>Aksiyon</th><th>Sonuç</th><th>Hata</th><th>Dosya:Satır</th></tr></thead><tbody id="logsBody"></tbody></table><div id="logsEmpty" class="empty-state">Henüz log yok.</div></div>
+      <div class="log-actions"><button id="btnCopyAllLogs">Tümünü Kopyala</button><button id="btnCopySelectedLogs">Seçileni Kopyala</button><button id="btnExportLogs">Dışa Aktar</button><button id="btnClearLogs">Temizle</button><button id="btnRetry">Yeniden Dene</button><button id="btnManual">Manuel Devret</button></div>
     </footer>
   </div>
 
-  <!-- =========================
-    GEREKSİNİM: MODÜL SCRIPT’LERİ GERİ KOY (TEK DOSYA KIRILMASI ÇÖZÜMÜ)
-    - manifest.json web_accessible_resources listesiyle uyumlu
-  ========================= -->
   <script type="module" src="kurallar_dom_regex_url.js"></script>
   <script type="module" src="kaziyici_hesap_com_tr.js"></script>
   <script type="module" src="kaziyici_anabayiniz_com.js"></script>
@@ -348,11 +94,5 @@ NOT: GÖRÜNÜMÜ KORU: stiller.css kullanılmaya devam ediyor
   <script type="module" src="mesaj_gonderici.js"></script>
   <script type="module" src="kayit_ve_loglama.js"></script>
   <script type="module" src="arayuz_uygulama.js"></script>
-
-  <!--
-    GEREKSİNİM: MODÜLER — UI kablolama yardımcıları ayrı dosyada (ui_kablolama_fix.js)
-    - Bu dosya sadece UI glue işlerini yapar: pill sync, log toggle, mini testler.
-  -->
-  <script type="module" src="ui_kablolama_fix.js"></script>
 </body>
 </html>
