@@ -37,7 +37,8 @@
         "puter.md",
         "puter_rules_runtime.js",
         "puter_chat_demo.html",
-        "puter_chat_demo.js"
+        "puter_chat_demo.js",
+        "lib/puter-v2.js"
       ],
       "matches": [
         "<all_urls>"
@@ -68,5 +69,8 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
 }

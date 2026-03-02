@@ -649,8 +649,7 @@ function attachEvents() {
 
   // log araçları
   if (refs.btnCopyAllLogs) refs.btnCopyAllLogs.addEventListener('click', async () => {
-    const compactTxt = compactLinesFromEntries(logStore.getLastRun()).join('
-');
+    const compactTxt = compactLinesFromEntries(logStore.getLastRun()).join('\n');
     await copyToClipboard(compactTxt);
   });
   if (refs.btnCopySelectedLogs) refs.btnCopySelectedLogs.addEventListener('click', async () => {
@@ -663,10 +662,8 @@ function attachEvents() {
   });
   if (refs.btnExportLogs) refs.btnExportLogs.addEventListener('click', () => {
     const entries = logStore.getLastRun();
-    const compactTxt = compactLinesFromEntries(entries).join('
-');
-    const jsonl = entries.map((e) => JSON.stringify(e)).join('
-');
+    const compactTxt = compactLinesFromEntries(entries).join('\n');
+    const jsonl = entries.map((e) => JSON.stringify(e)).join('\n');
     downloadTextFile('patpat_logs_compact.txt', compactTxt);
     downloadTextFile('patpat_logs_raw.jsonl', jsonl);
   });
