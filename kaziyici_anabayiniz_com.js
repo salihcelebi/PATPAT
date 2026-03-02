@@ -16,38 +16,23 @@ import {
 import { LogManager } from './kayit_ve_loglama.js';
 
 
-// FIX5_FETCH_HTML: gerçek tarama için HTML çekme yardımcıları
-async function fetchHtmlViaTab(url) {
-  if (!(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) {
-    throw new Error('NO_CHROME_RUNTIME');
-  }
-  const response = await chrome.runtime.sendMessage({ type: 'FETCH_HTML_FROM_TAB', url });
-  if (!response?.ok) {
-    throw new Error(response?.error || 'FETCH_HTML_FROM_TAB_FAIL');
-  }
-  return String(response.html || '');
-}
-
+/**
+ * Güvenli HTML fetch helper (MV3 side panel içinde, host_permissions ile).
+ * Not: credentials:'include' ile oturum cookie'leri gönderilir.
+ */
 async function fetchHtml(url, abortSignal) {
-  try {
-    const res = await fetch(url, {
+  const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
     cache: 'no-store',
     redirect: 'follow',
     signal: abortSignal,
-    headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
   });
-  if (!res.ok) {
-      const err = new Error(`HTTP_${res.status}`);
-      err.code = `HTTP_${res.status}`;
-      throw err;
-    }
-    return await res.text();
-  } catch (directErr) {
-    if (abortSignal?.aborted) throw directErr;
-    return await fetchHtmlViaTab(url);
-  }
+  if (!res.ok) throw new Error(`HTTP_${res.status}`);
+  return await res.text();
 }
 
 /**
@@ -83,22 +68,17 @@ export async function taraAnabayiniz({ smmIds = [], abortSignal, onProgress = ()
     for (const smmId of smmIds) {
       if (abortSignal?.aborted) throw new Error('ABORTED');
       const url = `https://anabayiniz.com/orders?search=${encodeURIComponent(smmId)}`;
-      onProgress({ source_url: url, smm_id: smmId, run_id: runId });
-      // FIX5_FETCH_HTML: gerçek sayfa içeriğini çek
-      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'fetch' });
-      let html = '';
       try {
-        html = await fetchHtml(url, abortSignal);
-      } catch (e) {
-        const code = e?.code || 'FETCH_ERROR';
-        const msg = e?.message || String(e);
-        errors.push({ source_url: url, smm_id: smmId, code, message: msg, stage: 'fetch' });
-        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'error', code, message: msg });
-        continue;
+        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'fetch' });
+        const html = await fetchHtml(url, abortSignal);
+        const rows = parseAnabayinizOrdersFromHtml(html, { source_url: url, smm_id: smmId });
+        orders.push(...rows);
+        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'parsed', rowsFound: rows.length });
+      } catch (err) {
+        errors.push({ source_url: url, smm_id: smmId, code: 'FETCH_OR_PARSE', message: String(err?.message || err), stage: 'error' });
+        onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'error', code: 'FETCH_OR_PARSE', message: String(err?.message || err) });
+        LogManager?.addLog({ level: 'error', module: 'kaziyici_anabayiniz', action: 'page', result: 'error', error: err?.message, run_id: runId });
       }
-      const rows = parseAnabayinizOrdersFromHtml(html, { source_url: url, smm_id: smmId });
-      onProgress({ source_url: url, smm_id: smmId, run_id: runId, stage: 'parsed', rowsFound: rows.length });
-      orders.push(...rows);
     }
   } catch (err) {
     errors.push(String(err.message || err));

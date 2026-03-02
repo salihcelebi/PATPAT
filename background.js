@@ -13,6 +13,32 @@ self.addEventListener("unhandledrejection", (event) => {
   logErr("Unhandled rejection:", event?.reason || event);
 });
 
+function openUiFallback() {
+  try {
+    const url = chrome.runtime.getURL("arayuz.html");
+    chrome.tabs.create({ url });
+    log("Fallback: opened UI in new tab:", url);
+  } catch (e) {
+    logErr("Fallback open tab failed:", e);
+  }
+}
+
+function installActionClickFallback() {
+  try {
+    if (!chrome?.action?.onClicked) return;
+    // If sidePanel API is missing (Brave/older Chromium), clicking the extension icon should still open UI.
+    chrome.action.onClicked.addListener(() => {
+      // If side panel exists and open-on-click is enabled, Chromium will handle it; otherwise open tab.
+      if (!chrome?.sidePanel?.setPanelBehavior) {
+        openUiFallback();
+      }
+    });
+    log("Action click fallback installed");
+  } catch (e) {
+    logErr("installActionClickFallback error:", e);
+  }
+}
+
 async function enableSidePanelOnClick() {
   try {
     if (!chrome?.sidePanel?.setPanelBehavior) {
@@ -39,11 +65,13 @@ async function ensureSidePanelPath() {
 // Yükleme/yenileme anında da uygula
 chrome.runtime.onInstalled.addListener(async (details) => {
   log("onInstalled:", details?.reason);
+  installActionClickFallback();
   await enableSidePanelOnClick();
   await ensureSidePanelPath();
 });
 
 // Worker yeniden uyanınca da davranış tekrar set edilsin
+installActionClickFallback();
 enableSidePanelOnClick().then(ensureSidePanelPath);
 
 
@@ -93,4 +121,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   })();
 
   return true;
+});
+
+// BRAVE FALLBACK: action click -> try open side panel; if unsupported open tab with arayuz.html
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    // Prefer Side Panel if available (Chrome 114+). Brave may disable it.
+    if (chrome?.sidePanel?.open && tab?.id) {
+      await chrome.sidePanel.open({ tabId: tab.id });
+      log("sidePanel.open called for tab", tab.id);
+      return;
+    }
+  } catch (e) {
+    logErr("sidePanel.open failed, fallback to tab:", e);
+  }
+  try {
+    const url = chrome.runtime.getURL("arayuz.html");
+    await chrome.tabs.create({ url });
+    log("Opened fallback tab:", url);
+  } catch (e) {
+    logErr("Fallback open tab failed:", e);
+  }
 });

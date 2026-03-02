@@ -15,9 +15,7 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 
   <!-- (KORU) Puter.js (AI) - Puter ile ilgili JS SADECE bu HTML içinde olacak -->
-  <script src="https://js.puter.com/v2/"></script>
-
-  <style>
+<style>
     /*
       =====================================================================
       PRO UI OVERRIDES (stiller.css üstüne "daha şık + daha temiz" katman)
@@ -643,7 +641,7 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
           <button class="pro-btn" id="btnToggleSidePanel" type="button" title="Sağ paneli aç/kapat">🧩 Panel</button>
           <button class="pro-btn" id="btnToggleLogPanel" type="button" title="Log panelini kapat/aç">📜 Log</button>
           <button class="pro-btn" id="btnQuickCopy" type="button" title="Mesaj önizlemeyi kopyala">📋 Kopyala</button>
-          <button class="pro-btn" id="btnOpenMessagePage" type="button" title="Mesaj sayfasını aç (https://hesap.com.tr/u/{kullaniciadi})">🔗 Mesaj</button>
+          <button class="pro-btn" id="btnOpenMessagePageQuick" type="button" title="Mesaj sayfasını aç (https://hesap.com.tr/u/{kullaniciadi})">🔗 Mesaj</button>
           <button class="pro-btn primary" id="btnFocusSelected" type="button" title="Seçili satıra git">🎯 Seçili</button>
           <button class="pro-btn" id="btnReloadUi" type="button" title="Sayfayı yenile">🔄 Yenile</button>
         </div>
@@ -656,7 +654,30 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
           <option value="analysis">Analiz Modu</option>
           <option value="complaint">Şikayet Modu</option>
         </select>
+      
+      <div class="bar-item">
+        <label for="statusSelect">Durum:</label>
+        <select id="statusSelect" multiple size="6" title="CTRL ile çoklu seçim">
+          <option value="pending" selected>Beklemede</option>
+          <option value="processing" selected>İşleniyor</option>
+          <option value="completed" selected>Tamamlandı</option>
+          <option value="canceled" selected>İptal</option>
+          <option value="returnprocess" selected>İade</option>
+          <option value="problematic" selected>Sorunlu</option>
+        </select>
       </div>
+
+      <div class="bar-item">
+        <label for="searchInput">Ara:</label>
+        <input id="searchInput" type="text" placeholder="Sipariş ID / kullanıcı / ilan" />
+      </div>
+
+      <div class="bar-item">
+        <label for="pageLimitInput">Sayfa:</label>
+        <input id="pageLimitInput" type="number" min="0" value="0" title="0 = sayfalar bitene kadar" />
+      </div>
+
+</div>
       <div class="top-row top-row--actions">
         <div class="bar-item actions"><button id="btnStart">Taramayı Başlat</button><button id="btnStop" disabled>Durdur</button><button id="btnExportCsv">CSV</button><button id="btnExportJson">JSONL</button></div>
         <div class="bar-item"><label for="autoSendToggle">Oto gönder</label><input id="autoSendToggle" type="checkbox" /><label for="dryRunToggle">Deneme Modu (Göndermez)</label><input id="dryRunToggle" type="checkbox" checked /></div>
@@ -756,19 +777,40 @@ Kısa açıklama (~15 kelime): Mevcut ID’leri koruyup UI’yi profesyonelleşt
               <span style="font-size:12px; color: var(--pro-muted); font-weight:800;">Şablon + kontrol</span>
             </h4>
 
-      <section class="template-card">
-        <h4>Mesaj Önizleme</h4>
-        <textarea id="messagePreview" rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
-        <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
-        <div class="template-actions"><select id="templateSelect"><option value="auto">Otomatik Bilgilendirme</option><option value="complaint">Şikayet Yanıtı</option></select><button id="btnGenerateTemplate">Şablon Üret</button><button id="btnSendReply">Gönder</button><button id="btnCopyMessage">Kopyala</button><button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button></div>
-        <textarea id="clipboardFallback" class="hidden" readonly></textarea>
-        <!-- Kısa açıklama (~15 kelime): Puter chat demo sayfasını açan küçük debug butonu; akışı bozmadan test sağlar. -->
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <button id="btnPuterChatDemo" type="button">PUTER CHAT DEMO AÇ</button>
-          <span style="opacity:.7;font-size:12px;">(Yerel SDK: lib/puter-v2.js)</span>
+            <textarea id="messagePreview" rows="6" placeholder="Mesaj şablonu burada görünecek"></textarea>
+            <div id="policyWarning" class="policy-warning hidden">Mesaj politikasına aykırı içerik algılandı.</div>
+
+            <div class="template-actions">
+              <select id="templateSelect">
+                <option value="auto">Otomatik Bilgilendirme</option>
+                <option value="complaint">Şikayet Yanıtı</option>
+              </select>
+
+              <button id="btnGenerateTemplate" type="button">Şablon Üret</button>
+              <button id="btnSendMessage" type="button">Gönder</button>
+              <button id="btnCopyMessage" type="button">Kopyala</button>
+              <button id="btnOpenMessagePage" type="button">Mesaj Sayfasını Aç</button>
+            </div>
+
+            <textarea id="clipboardFallback" class="hidden" readonly></textarea>
+
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+              <button id="btnPuterChatDemo" type="button">PUTER CHAT DEMO AÇ</button>
+              <span style="opacity:.7;font-size:12px;">(Yerel SDK: lib/puter-v2.js)</span>
+            </div>
+          </div>
         </div>
-      </section>
-    </aside>
+
+        <!-- PANEL: AI -->
+        <div class="pro-panel" data-propanel="ai">
+          <div class="detail-card">
+            <h4><span>🧠 AI</span><span style="font-size:12px; color: var(--pro-muted); font-weight:800;">Puter.js aktif</span></h4>
+            <div style="font-size:12px;color:var(--pro-muted);line-height:1.4;">
+              Mesaj üretimi ve politika kontrolü her zaman Puter.js üzerinden çalışır.
+            </div>
+          </div>
+        </div>
+</aside>
 
     <footer id="logPanel" class="log-panel card">
       <div class="log-header" id="logToggle"><h4>Loglar</h4><button id="logStateBtn" type="button" data-stop-toggle="1">KAPAT ▲</button></div>
